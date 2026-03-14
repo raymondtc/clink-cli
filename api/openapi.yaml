@@ -1,0 +1,317 @@
+openapi: 3.0.3
+info:
+  title: Clink API
+  description: 天润融通呼叫中心 API
+  version: 1.0.0
+  contact:
+    name: Raymond
+    email: 770913028@qq.com
+
+servers:
+  - url: https://api.clink.cn
+    description: 生产环境
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: query
+      name: signature
+      
+  schemas:
+    CallRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 通话记录ID
+        phone:
+          type: string
+          description: 电话号码
+        agentId:
+          type: string
+          description: 座席ID
+        agentName:
+          type: string
+          description: 座席姓名
+        startTime:
+          type: string
+          description: 开始时间
+        endTime:
+          type: string
+          description: 结束时间
+        duration:
+          type: integer
+          description: 通话时长(秒)
+        status:
+          type: string
+          enum: [answered, missed, busy, failed]
+          description: 通话状态
+        recordingUrl:
+          type: string
+          description: 录音URL
+          nullable: true
+          
+    Agent:
+      type: object
+      properties:
+        agentId:
+          type: string
+          description: 座席ID
+        agentName:
+          type: string
+          description: 座席姓名
+        status:
+          type: string
+          enum: [online, busy, offline, pause]
+          description: 座席状态
+        currentCall:
+          type: string
+          description: 当前通话ID
+          nullable: true
+        loginTime:
+          type: string
+          description: 登录时间
+          nullable: true
+          
+    Queue:
+      type: object
+      properties:
+        queueId:
+          type: string
+          description: 队列ID
+        queueName:
+          type: string
+          description: 队列名称
+        waitingCount:
+          type: integer
+          description: 等待人数
+        avgWaitTime:
+          type: integer
+          description: 平均等待时间(秒)
+        agentsOnline:
+          type: integer
+          description: 在线座席数
+        agentsBusy:
+          type: integer
+          description: 忙碌座席数
+          
+    CallResult:
+      type: object
+      properties:
+        callId:
+          type: string
+          description: 通话ID
+        status:
+          type: string
+          description: 呼叫状态
+        phone:
+          type: string
+          description: 电话号码
+          
+    APIResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 状态码
+        message:
+          type: string
+          description: 消息
+        data:
+          type: object
+          description: 数据
+
+paths:
+  /api/callin/records:
+    get:
+      summary: 获取呼入记录
+      operationId: getInboundRecords
+      parameters:
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 开始时间(YYYY-MM-DD HH:MM:SS)
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 结束时间(YYYY-MM-DD HH:MM:SS)
+        - name: phone
+          in: query
+          schema:
+            type: string
+          description: 电话号码筛选
+        - name: agentId
+          in: query
+          schema:
+            type: string
+          description: 座席ID筛选
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: 页码
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: 每页数量
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          list:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/CallRecord'
+                              
+  /api/callout/records:
+    get:
+      summary: 获取外呼记录
+      operationId: getOutboundRecords
+      parameters:
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: phone
+          in: query
+          schema:
+            type: string
+        - name: agentId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          list:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/CallRecord'
+                              
+  /api/agents/status:
+    get:
+      summary: 获取座席状态
+      operationId: getAgentStatus
+      parameters:
+        - name: agentId
+          in: query
+          schema:
+            type: string
+          description: 座席ID(可选)
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          list:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Agent'
+                              
+  /api/call/dial:
+    post:
+      summary: 发起外呼
+      operationId: makeCall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  description: 电话号码
+                agentId:
+                  type: string
+                  description: 座席ID
+                displayNumber:
+                  type: string
+                  description: 外显号码
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/CallResult'
+                        
+  /api/monitor/queue:
+    get:
+      summary: 获取队列状态
+      operationId: getQueueStatus
+      parameters:
+        - name: queueId
+          in: query
+          schema:
+            type: string
+          description: 队列ID(可选)
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Queue'

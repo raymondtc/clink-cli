@@ -1,0 +1,38 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+clink
+clink-mcp
+
+# Test binary
+*.test
+
+# Output
+dist/
+build/
+*.out
+
+# Go
+vendor/
+go.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage.out
+*.cover
+
+# Environment
+.env
+.env.local
