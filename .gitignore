@@ -3,8 +3,8 @@
 *.dll
 *.so
 *.dylib
-clink
-clink-mcp
+/clink
+/clink-mcp
 
 # Test binary
 *.test
