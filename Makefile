@@ -1,42 +1,24 @@
-.PHONY: all build test clean install release
+# Generate code from OpenAPI spec
+generate:
+	@echo "Generating code from OpenAPI spec..."
+	@go run scripts/generate.go api/openapi.yaml
+	@echo "Code generation complete!"
 
-VERSION := 0.1.0
-BINARY := clink
-MCP_BINARY := clink-mcp
-
-all: build
-
+# Build all binaries
 build:
-	go build -ldflags="-s -w -X main.version=$(VERSION)" -o $(BINARY) ./cmd/clink
-	go build -ldflags="-s -w -X main.version=$(VERSION)" -o $(MCP_BINARY) ./cmd/clink-mcp
+	go build -o bin/clink ./cmd/clink
+	go build -o bin/clink-mcp ./cmd/clink-mcp
 
+# Run tests
 test:
-	go test -v -race -cover ./...
+	go test -v ./...
 
+# Clean generated files and binaries
 clean:
-	rm -f $(BINARY) $(MCP_BINARY)
-	rm -rf dist/
+	rm -rf bin/
+	rm -f pkg/generated/*.go
 
-install: build
-	cp $(BINARY) /usr/local/bin/
-	cp $(MCP_BINARY) /usr/local/bin/
+# Full rebuild: generate + build
+rebuild: clean generate build
 
-# Cross compilation
-build-all:
-	mkdir -p dist
-	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(BINARY)-linux-amd64 ./cmd/clink
-	GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/$(BINARY)-linux-arm64 ./cmd/clink
-	GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(BINARY)-darwin-amd64 ./cmd/clink
-	GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/$(BINARY)-darwin-arm64 ./cmd/clink
-	GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(BINARY)-windows-amd64.exe ./cmd/clink
-	
-	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(MCP_BINARY)-linux-amd64 ./cmd/clink-mcp
-	GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/$(MCP_BINARY)-linux-arm64 ./cmd/clink-mcp
-	GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(MCP_BINARY)-darwin-amd64 ./cmd/clink-mcp
-	GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/$(MCP_BINARY)-darwin-arm64 ./cmd/clink-mcp
-	GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(MCP_BINARY)-windows-amd64.exe ./cmd/clink-mcp
-
-# Release
-release:
-	@chmod +x scripts/release.sh
-	@scripts/release.sh $(VERSION)
+.PHONY: all build test clean generate rebuild
