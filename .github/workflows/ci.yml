@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+env:
+  GO_VERSION: '1.23'
+  GOPROXY: https://proxy.golang.org,direct
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,7 +23,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.23'
+        go-version: ${{ env.GO_VERSION }}
         cache: true
     
     - name: Download dependencies
@@ -66,7 +70,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.22'
+        go-version: ${{ env.GO_VERSION }}
         cache: true
     
     - name: Download dependencies
@@ -129,6 +133,6 @@ jobs:
         files: dist/*
         generate_release_notes: true
         draft: false
-        prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
