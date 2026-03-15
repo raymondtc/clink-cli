@@ -3,7 +3,7 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/mark3labs/mcp-go v0.5.0 h1:N2d8/OBphZ4IpOQ/NfQ1W1T0d/r6pCFXbGRvYdIFQbo=
-github.com/mark3labs/mcp-go v0.5.0/go.mod h1:ePkDSaWCQ0BC8dQtqwV+78t57mwW8mz1qEjPVpmJOM4=
+github.com/mark3labs/mcp-go v0.5.0/go.mod h1:ePkDSyplFbA306xRgyp587+q/vpdgxuswwjZqTQ+I8Q=
 github.com/pmezard/go-diffs v0.0.0-20170216205756-248e4c3c7242 h1:GDh7MsTlR5ZTmAJ5ey0gGNL8osnMWWiGXR12y4oz/PQ=
 github.com/pmezard/go-diffs v0.0.0-20170216205756-248e4c3c7242/go.mod h1:39zJJ8tpE7WpL+l0TsByj7f4QZtmto2RnzqW4hKQNjQ=
 github.com/spf13/cobra v1.8.0 h1:7aJaZx1B85qltLMc546zn58BxxfZdR/W22ej9CFoEf0=
