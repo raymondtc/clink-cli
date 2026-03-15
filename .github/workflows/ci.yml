@@ -22,39 +22,29 @@ jobs:
         go-version: '1.22'
         cache: true
     
-    - name: Download dependencies
-      run: go mod download
+    - name: Verify Go modules
+      run: |
+        go mod verify
+        go mod download
     
     - name: Run tests
-      run: go test -v -race -coverprofile=coverage.out ./...
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
-      with:
-        files: ./coverage.out
-        fail_ci_if_error: false  # Don't fail if codecov upload fails
+      run: go test -v -race ./...
     
     - name: Build test
       run: |
         go build -v ./cmd/clink
         go build -v ./cmd/clink-mcp
-
-  lint:
-    runs-on: ubuntu-latest
-    continue-on-error: true  # Don't block release if lint fails
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-      with:
-        go-version: '1.22'
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v4
-      with:
-        version: latest
-        args: --timeout=5m --issues-exit-code=0  # Don't fail on lint issues
+    
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Please run gofmt -s -w ."
+          gofmt -s -l .
+          exit 1
+        fi
 
   release:
-    needs: [test]  # Only depend on test, not lint
+    needs: [test]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     
@@ -63,22 +53,14 @@ jobs:
         include:
           - os: linux
             arch: amd64
-            ext: ""
           - os: linux
             arch: arm64
-            ext: ""
           - os: darwin
             arch: amd64
-            ext: ""
           - os: darwin
             arch: arm64
-            ext: ""
           - os: windows
             arch: amd64
-            ext: ".exe"
-          - os: windows
-            arch: arm64
-            ext: ".exe"
     
     steps:
     - uses: actions/checkout@v4
@@ -92,25 +74,22 @@ jobs:
     - name: Download dependencies
       run: go mod download
     
-    - name: Build clink
-      env:
-        GOOS: ${{ matrix.os }}
-        GOARCH: ${{ matrix.arch }}
-        CGO_ENABLED: 0  # Disable CGO for static binaries
-      run: |
-        mkdir -p dist
-        go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
-          -o dist/clink-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} \
-          ./cmd/clink
-    
-    - name: Build clink-mcp
+    - name: Build binaries
       env:
         GOOS: ${{ matrix.os }}
         GOARCH: ${{ matrix.arch }}
         CGO_ENABLED: 0
       run: |
+        mkdir -p dist
+        ext=""
+        if [ "${{ matrix.os }}" = "windows" ]; then
+          ext=".exe"
+        fi
         go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
-          -o dist/clink-mcp-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }} \
+          -o dist/clink-${{ matrix.os }}-${{ matrix.arch }}${ext} \
+          ./cmd/clink
+        go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
+          -o dist/clink-mcp-${{ matrix.os }}-${{ matrix.arch }}${ext} \
           ./cmd/clink-mcp
     
     - name: Upload artifacts
@@ -143,7 +122,7 @@ jobs:
     - name: Create checksums
       run: |
         cd dist
-        sha256sum clink-* clink-mcp-* > checksums.txt 2>/dev/null || true
+        sha256sum clink-* clink-mcp-* > checksums.txt || true
         cat checksums.txt
     
     - name: Create Release
