@@ -16,7 +16,6 @@ build/
 
 # Go
 vendor/
-go.sum
 
 # IDE
 .idea/

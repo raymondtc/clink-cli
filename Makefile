@@ -1,4 +1,4 @@
-.PHONY: all build test clean install
+.PHONY: all build test clean install release
 
 VERSION := 0.1.0
 BINARY := clink
@@ -15,6 +15,7 @@ test:
 
 clean:
 	rm -f $(BINARY) $(MCP_BINARY)
+	rm -rf dist/
 
 install: build
 	cp $(BINARY) /usr/local/bin/
@@ -22,6 +23,7 @@ install: build
 
 # Cross compilation
 build-all:
+	mkdir -p dist
 	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(BINARY)-linux-amd64 ./cmd/clink
 	GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/$(BINARY)-linux-arm64 ./cmd/clink
 	GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(BINARY)-darwin-amd64 ./cmd/clink
@@ -33,3 +35,8 @@ build-all:
 	GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(MCP_BINARY)-darwin-amd64 ./cmd/clink-mcp
 	GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/$(MCP_BINARY)-darwin-arm64 ./cmd/clink-mcp
 	GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/$(MCP_BINARY)-windows-amd64.exe ./cmd/clink-mcp
+
+# Release
+release:
+	@chmod +x scripts/release.sh
+	@scripts/release.sh $(VERSION)
