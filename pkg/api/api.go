@@ -205,3 +205,28 @@ func (a *API) GetQueueStatus(ctx context.Context, queueID string) (*models.Queue
 
 	return &queue, nil
 }
+
+// Webcall makes a webcall (no agent required)
+// API: POST /cc/webcall
+func (a *API) Webcall(ctx context.Context, phone, displayNumber string) (*models.CallResult, error) {
+	body := map[string]string{
+		"customerNumber": phone,
+	}
+	if displayNumber != "" {
+		body["clid"] = displayNumber
+	}
+
+	bodyJSON, _ := json.Marshal(body)
+	resp, err := a.client.Request(ctx, "POST", "/cc/webcall", nil, strings.NewReader(string(bodyJSON)))
+	if err != nil {
+		return nil, err
+	}
+
+	data, _ := json.Marshal(resp.Data)
+	var result models.CallResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}

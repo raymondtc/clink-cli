@@ -70,11 +70,13 @@ export CLINK_ACCESS_SECRET="your_secret"
 
 **当用户说"打电话"、"呼叫"、"联系"时，使用此工具。**
 
+**默认使用 WebCall 方式，无需座席 ID！**
+
 发起外呼电话或 WebCall。
 
 **参数**:
 - `phone` (必填): 要拨打的电话号码
-- `agent_id` (必填): 执行呼叫的座席号
+- `agent_id` (可选): 指定座席号（如需特定座席外呼，否则留空使用 WebCall）
 - `display_number` (可选): 外显号码
 
 **使用示例**:
@@ -82,24 +84,27 @@ export CLINK_ACCESS_SECRET="your_secret"
 用户: "给 18512854639 打个电话"
 → 调用 make_call
    phone: "18512854639"
-   agent_id: "0281"  (需要指定一个在线座席)
+   （不填 agent_id，自动使用 WebCall）
 
 用户: "呼叫客户 13800138000"
 → 调用 make_call
    phone: "13800138000"
-   agent_id: "0281"
+   （不填 agent_id）
 
-用户: "让张三给客户回电话"
-→ 先调用 get_agent_status 找到张三的座席号
-→ 然后调用 make_call
+用户: "用座席 0281 给客户打电话"
+→ 调用 make_call
    phone: "客户号码"
-   agent_id: "张三的座席号"
+   agent_id: "0281"  （指定座席）
 ```
 
+**工作原理**:
+- 如果不填 `agent_id` → 使用 `/cc/webcall`（WebCall，无需座席）
+- 如果填写 `agent_id` → 使用 `/cc/callout`（指定座席外呼）
+
 **注意事项**:
-- 发起呼叫前，建议先查询座席状态，选择空闲的座席
+- 默认使用 WebCall，不需要座席在线
+- 如需指定座席，请先调用 `get_agent_status` 确认座席状态
 - 呼叫需要真实的 API 凭证和企业权限
-- 返回的 requestId 可用于后续查询呼叫状态
 
 ## 组合使用示例
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/raymondtc/clink-cli/pkg/api"
 	"github.com/raymondtc/clink-cli/pkg/client"
+	"github.com/raymondtc/clink-cli/pkg/models"
 )
 
 // JSONRPCRequest represents a JSON-RPC request
@@ -105,15 +106,15 @@ func handleRequest(a *api.API, req JSONRPCRequest) JSONRPCResponse {
 				},
 				{
 					"name":        "make_call",
-					"description": "发起外呼电话",
+					"description": "发起电话呼叫（默认使用WebCall，无需座席ID）",
 					"inputSchema": map[string]interface{}{
 						"type": "object",
 						"properties": map[string]interface{}{
-							"phone":      map[string]string{"type": "string", "description": "电话号码"},
-							"agent_id":   map[string]string{"type": "string", "description": "座席ID"},
+							"phone":          map[string]string{"type": "string", "description": "要拨打的电话号码"},
+							"agent_id":       map[string]string{"type": "string", "description": "座席ID（可选，如需指定座席外呼）"},
 							"display_number": map[string]string{"type": "string", "description": "外显号码（可选）"},
 						},
-						"required": []string{"phone", "agent_id"},
+						"required": []string{"phone"},
 					},
 				},
 			},
@@ -168,7 +169,16 @@ func handleToolCall(a *api.API, name string, args map[string]interface{}) (inter
 		agentID, _ := args["agent_id"].(string)
 		displayNumber, _ := args["display_number"].(string)
 
-		result, err := a.MakeCall(ctx, phone, agentID, displayNumber)
+		var result *models.CallResult
+		var err error
+
+		// 如果指定了座席，使用 callout；否则使用 webcall
+		if agentID != "" {
+			result, err = a.MakeCall(ctx, phone, agentID, displayNumber)
+		} else {
+			result, err = a.Webcall(ctx, phone, displayNumber)
+		}
+
 		if err != nil {
 			return nil, err
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/raymondtc/clink-cli/pkg/api"
 	"github.com/raymondtc/clink-cli/pkg/client"
+	"github.com/raymondtc/clink-cli/pkg/models"
 )
 
 var (
@@ -157,14 +158,11 @@ var agentsCmd = &cobra.Command{
 
 var callCmd = &cobra.Command{
 	Use:   "call [phone]",
-	Short: "发起外呼",
+	Short: "发起外呼/WebCall",
+	Long:  "发起电话呼叫，默认使用 WebCall（无需座席ID）",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		phone := args[0]
-		
-		if agentID == "" {
-			return fmt.Errorf("请指定座席ID: --agent")
-		}
 		
 		config := client.DefaultConfig()
 		
@@ -189,7 +187,19 @@ var callCmd = &cobra.Command{
 		a := api.NewAPI(c)
 		
 		ctx := context.Background()
-		result, err := a.MakeCall(ctx, phone, agentID, "")
+		
+		var result *models.CallResult
+		var err error
+		
+		// 如果指定了座席，使用 callout；否则使用 webcall
+		if agentID != "" {
+			fmt.Printf("使用座席 %s 发起外呼...\n", agentID)
+			result, err = a.MakeCall(ctx, phone, agentID, "")
+		} else {
+			fmt.Println("使用 WebCall 发起呼叫（无需座席）...")
+			result, err = a.Webcall(ctx, phone, "")
+		}
+		
 		if err != nil {
 			return err
 		}
@@ -262,9 +272,8 @@ func init() {
 	// Agents flags
 	agentsCmd.Flags().StringVarP(&agentID, "agent", "a", "", "座席ID")
 	
-	// Call flags
-	callCmd.Flags().StringVarP(&agentID, "agent", "a", "", "座席ID")
-	callCmd.MarkFlagRequired("agent")
+	// Call flags - agent 现在是可选的
+	callCmd.Flags().StringVarP(&agentID, "agent", "a", "", "座席ID（可选，如需指定座席外呼）")
 	
 	// Add commands
 	rootCmd.AddCommand(recordsCmd)
