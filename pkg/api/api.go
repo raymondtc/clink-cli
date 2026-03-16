@@ -208,12 +208,24 @@ func (a *API) GetQueueStatus(ctx context.Context, queueID string) (*models.Queue
 
 // Webcall makes a webcall (no agent required)
 // API: POST /cc/webcall
-func (a *API) Webcall(ctx context.Context, phone, displayNumber string) (*models.CallResult, error) {
+func (a *API) Webcall(ctx context.Context, phone, displayNumber, ivrName string, extraParams map[string]string) (*models.CallResult, error) {
 	body := map[string]string{
 		"customerNumber": phone,
 	}
+	
+	// 添加可选参数
 	if displayNumber != "" {
 		body["clid"] = displayNumber
+	}
+	if ivrName != "" {
+		body["ivrName"] = ivrName
+	}
+	
+	// 添加其他额外参数
+	for k, v := range extraParams {
+		if v != "" {
+			body[k] = v
+		}
 	}
 
 	bodyJSON, _ := json.Marshal(body)

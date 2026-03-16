@@ -77,19 +77,22 @@ export CLINK_ACCESS_SECRET="your_secret"
 **参数**:
 - `phone` (必填): 要拨打的电话号码
 - `agent_id` (可选): 指定座席号（如需特定座席外呼，否则留空使用 WebCall）
-- `display_number` (可选): 外显号码
+- `display_number` (可选): 外显号码 (clid)
+- `ivr_name` (可选): IVR 名称，默认 "工作时间"
+- `cdr_associate_id` (可选): 通话记录关联 ID
+- `org_id` (可选): 组织 ID
 
 **使用示例**:
 ```
 用户: "给 18512854639 打个电话"
 → 调用 make_call
    phone: "18512854639"
-   （不填 agent_id，自动使用 WebCall）
+   （不填 agent_id，自动使用 WebCall，ivr_name 默认"工作时间"）
 
-用户: "呼叫客户 13800138000"
+用户: "呼叫客户 13800138000，使用销售ivr"
 → 调用 make_call
    phone: "13800138000"
-   （不填 agent_id）
+   ivr_name: "销售"
 
 用户: "用座席 0281 给客户打电话"
 → 调用 make_call
@@ -103,6 +106,7 @@ export CLINK_ACCESS_SECRET="your_secret"
 
 **注意事项**:
 - 默认使用 WebCall，不需要座席在线
+- 默认 IVR 为 "工作时间"
 - 如需指定座席，请先调用 `get_agent_status` 确认座席状态
 - 呼叫需要真实的 API 凭证和企业权限
 

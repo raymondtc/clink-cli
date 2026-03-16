@@ -110,9 +110,12 @@ func handleRequest(a *api.API, req JSONRPCRequest) JSONRPCResponse {
 					"inputSchema": map[string]interface{}{
 						"type": "object",
 						"properties": map[string]interface{}{
-							"phone":          map[string]string{"type": "string", "description": "要拨打的电话号码"},
-							"agent_id":       map[string]string{"type": "string", "description": "座席ID（可选，如需指定座席外呼）"},
-							"display_number": map[string]string{"type": "string", "description": "外显号码（可选）"},
+							"phone":            map[string]string{"type": "string", "description": "要拨打的电话号码"},
+							"agent_id":         map[string]string{"type": "string", "description": "座席ID（可选，如需指定座席外呼）"},
+							"display_number":   map[string]string{"type": "string", "description": "外显号码clid（可选）"},
+							"ivr_name":         map[string]string{"type": "string", "description": "IVR名称（可选，默认：工作时间）"},
+							"cdr_associate_id": map[string]string{"type": "string", "description": "通话记录关联ID（可选）"},
+							"org_id":           map[string]string{"type": "string", "description": "组织ID（可选）"},
 						},
 						"required": []string{"phone"},
 					},
@@ -168,6 +171,14 @@ func handleToolCall(a *api.API, name string, args map[string]interface{}) (inter
 		phone, _ := args["phone"].(string)
 		agentID, _ := args["agent_id"].(string)
 		displayNumber, _ := args["display_number"].(string)
+		ivrName, _ := args["ivr_name"].(string)
+		cdrAssociateID, _ := args["cdr_associate_id"].(string)
+		orgID, _ := args["org_id"].(string)
+
+		// 如果未指定 ivrName，使用默认值
+		if ivrName == "" {
+			ivrName = "工作时间"
+		}
 
 		var result *models.CallResult
 		var err error
@@ -176,7 +187,15 @@ func handleToolCall(a *api.API, name string, args map[string]interface{}) (inter
 		if agentID != "" {
 			result, err = a.MakeCall(ctx, phone, agentID, displayNumber)
 		} else {
-			result, err = a.Webcall(ctx, phone, displayNumber)
+			// 构建额外参数
+			extraParams := map[string]string{}
+			if cdrAssociateID != "" {
+				extraParams["cdrAssociateId"] = cdrAssociateID
+			}
+			if orgID != "" {
+				extraParams["orgId"] = orgID
+			}
+			result, err = a.Webcall(ctx, phone, displayNumber, ivrName, extraParams)
 		}
 
 		if err != nil {

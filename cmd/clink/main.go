@@ -26,6 +26,12 @@ var (
 	agentID   string
 	page      int
 	output    string
+	
+	// WebCall flags
+	ivrName        string
+	displayNumber  string
+	cdrAssociateID string
+	orgID          string
 )
 
 // getEnvWithFallback 获取环境变量，支持多个备选名称
@@ -197,7 +203,17 @@ var callCmd = &cobra.Command{
 			result, err = a.MakeCall(ctx, phone, agentID, "")
 		} else {
 			fmt.Println("使用 WebCall 发起呼叫（无需座席）...")
-			result, err = a.Webcall(ctx, phone, "")
+			
+			// 构建额外参数
+			extraParams := map[string]string{}
+			if cdrAssociateID != "" {
+				extraParams["cdrAssociateId"] = cdrAssociateID
+			}
+			if orgID != "" {
+				extraParams["orgId"] = orgID
+			}
+			
+			result, err = a.Webcall(ctx, phone, displayNumber, ivrName, extraParams)
 		}
 		
 		if err != nil {
@@ -274,6 +290,10 @@ func init() {
 	
 	// Call flags - agent 现在是可选的
 	callCmd.Flags().StringVarP(&agentID, "agent", "a", "", "座席ID（可选，如需指定座席外呼）")
+	callCmd.Flags().StringVar(&displayNumber, "clid", "", "外显号码（可选）")
+	callCmd.Flags().StringVar(&ivrName, "ivr", "工作时间", "IVR名称（可选，默认：工作时间）")
+	callCmd.Flags().StringVar(&cdrAssociateID, "cdr-associate-id", "", "通话记录关联ID（可选）")
+	callCmd.Flags().StringVar(&orgID, "org-id", "", "组织ID（可选）")
 	
 	// Add commands
 	rootCmd.AddCommand(recordsCmd)
