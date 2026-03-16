@@ -91,7 +91,9 @@ func (c *Client) Request(ctx context.Context, method, path string, params map[st
 		params = make(map[string]string)
 	}
 	params["accessId"] = c.config.AccessID
-	params["enterpriseId"] = c.config.EnterpriseID
+	if c.config.EnterpriseID != "" {
+		params["enterpriseId"] = c.config.EnterpriseID
+	}
 	params["timestamp"] = strconv.FormatInt(time.Now().UnixMilli(), 10)
 	params["signature"] = c.generateSignature(params)
 

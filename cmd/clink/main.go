@@ -27,6 +27,16 @@ var (
 	output    string
 )
 
+// getEnvWithFallback 获取环境变量，支持多个备选名称
+func getEnvWithFallback(names ...string) string {
+	for _, name := range names {
+		if value := os.Getenv(name); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "clink",
 	Short: "天润融通 CLI 工具",
@@ -41,9 +51,21 @@ var recordsCmd = &cobra.Command{
 		direction := args[0]
 		
 		config := client.DefaultConfig()
+		
+		// 支持多种环境变量名称
+		accessKey := getEnvWithFallback("CLINK_ACCESS_ID", "CLINK_ACCESS_KEY_ID")
+		secret := getEnvWithFallback("CLINK_ACCESS_SECRET", "CLINK_SECRET")
+		
 		if accessID != "" {
-			config.AccessID = accessID
-			config.AccessSecret = accessSecret
+			accessKey = accessID
+		}
+		if accessSecret != "" {
+			secret = accessSecret
+		}
+		
+		if accessKey != "" && secret != "" {
+			config.AccessID = accessKey
+			config.AccessSecret = secret
 			config.EnterpriseID = enterpriseID
 			config.EnableMock = false
 		}
@@ -84,9 +106,20 @@ var agentsCmd = &cobra.Command{
 	Short: "查询座席状态",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		config := client.DefaultConfig()
+		
+		accessKey := getEnvWithFallback("CLINK_ACCESS_ID", "CLINK_ACCESS_KEY_ID")
+		secret := getEnvWithFallback("CLINK_ACCESS_SECRET", "CLINK_SECRET")
+		
 		if accessID != "" {
-			config.AccessID = accessID
-			config.AccessSecret = accessSecret
+			accessKey = accessID
+		}
+		if accessSecret != "" {
+			secret = accessSecret
+		}
+		
+		if accessKey != "" && secret != "" {
+			config.AccessID = accessKey
+			config.AccessSecret = secret
 			config.EnterpriseID = enterpriseID
 			config.EnableMock = false
 		}
@@ -134,9 +167,20 @@ var callCmd = &cobra.Command{
 		}
 		
 		config := client.DefaultConfig()
+		
+		accessKey := getEnvWithFallback("CLINK_ACCESS_ID", "CLINK_ACCESS_KEY_ID")
+		secret := getEnvWithFallback("CLINK_ACCESS_SECRET", "CLINK_SECRET")
+		
 		if accessID != "" {
-			config.AccessID = accessID
-			config.AccessSecret = accessSecret
+			accessKey = accessID
+		}
+		if accessSecret != "" {
+			secret = accessSecret
+		}
+		
+		if accessKey != "" && secret != "" {
+			config.AccessID = accessKey
+			config.AccessSecret = secret
 			config.EnterpriseID = enterpriseID
 			config.EnableMock = false
 		}
@@ -164,9 +208,20 @@ var queueCmd = &cobra.Command{
 	Short: "查询队列状态",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		config := client.DefaultConfig()
+		
+		accessKey := getEnvWithFallback("CLINK_ACCESS_ID", "CLINK_ACCESS_KEY_ID")
+		secret := getEnvWithFallback("CLINK_ACCESS_SECRET", "CLINK_SECRET")
+		
 		if accessID != "" {
-			config.AccessID = accessID
-			config.AccessSecret = accessSecret
+			accessKey = accessID
+		}
+		if accessSecret != "" {
+			secret = accessSecret
+		}
+		
+		if accessKey != "" && secret != "" {
+			config.AccessID = accessKey
+			config.AccessSecret = secret
 			config.EnterpriseID = enterpriseID
 			config.EnableMock = false
 		}
@@ -192,9 +247,9 @@ var queueCmd = &cobra.Command{
 
 func init() {
 	// Global flags
-	rootCmd.PersistentFlags().StringVar(&accessID, "access-id", os.Getenv("CLINK_ACCESS_ID"), "Access ID")
-	rootCmd.PersistentFlags().StringVar(&accessSecret, "access-secret", os.Getenv("CLINK_ACCESS_SECRET"), "Access Secret")
-	rootCmd.PersistentFlags().StringVar(&enterpriseID, "enterprise-id", os.Getenv("CLINK_ENTERPRISE_ID"), "Enterprise ID")
+	rootCmd.PersistentFlags().StringVar(&accessID, "access-id", "", "Access ID (env: CLINK_ACCESS_ID or CLINK_ACCESS_KEY_ID)")
+	rootCmd.PersistentFlags().StringVar(&accessSecret, "access-secret", "", "Access Secret (env: CLINK_ACCESS_SECRET or CLINK_SECRET)")
+	rootCmd.PersistentFlags().StringVar(&enterpriseID, "enterprise-id", "", "Enterprise ID (optional, env: CLINK_ENTERPRISE_ID)")
 	rootCmd.PersistentFlags().StringVar(&baseURL, "base-url", "", "Base URL")
 	
 	// Records flags
