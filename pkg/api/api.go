@@ -222,11 +222,24 @@ func (a *API) Webcall(ctx context.Context, phone, displayNumber string) (*models
 		return nil, err
 	}
 
-	data, _ := json.Marshal(resp.Data)
-	var result models.CallResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, err
+	// Webcall API 返回结构: {"result": {"requestUniqueId": "xxx"}, "requestId": "xxx"}
+	if resp.Result != nil {
+		data, _ := json.Marshal(resp.Result)
+		var result struct {
+			RequestUniqueID string `json:"requestUniqueId"`
+		}
+		if err := json.Unmarshal(data, &result); err == nil && result.RequestUniqueID != "" {
+			return &models.CallResult{
+				CallID: result.RequestUniqueID,
+				Status: "submitted",
+				Phone:  phone,
+			}, nil
+		}
 	}
 
-	return &result, nil
+	return &models.CallResult{
+		CallID: resp.RequestID,
+		Status: "unknown",
+		Phone:  phone,
+	}, nil
 }

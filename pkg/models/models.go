@@ -42,14 +42,15 @@ type CallResult struct {
 
 // APIResponse represents a generic API response
 type APIResponse struct {
-	Code       int         `json:"code,omitempty"`
-	Message    string      `json:"message,omitempty"`
-	Data       interface{} `json:"data,omitempty"`
-	RequestID  string      `json:"requestId,omitempty"`
-	TotalCount int         `json:"totalCount,omitempty"`
-	AgentStatus []Agent    `json:"agentStatus,omitempty"`
-	CdrIbs     []CallRecord `json:"cdrIbs,omitempty"`
-	CdrObs     []CallRecord `json:"cdrObs,omitempty"`
+	Code        int         `json:"code,omitempty"`
+	Message     string      `json:"message,omitempty"`
+	Data        interface{} `json:"data,omitempty"`
+	Result      interface{} `json:"result,omitempty"` // Webcall等API使用
+	RequestID   string      `json:"requestId,omitempty"`
+	TotalCount  int         `json:"totalCount,omitempty"`
+	AgentStatus []Agent     `json:"agentStatus,omitempty"`
+	CdrIbs      []CallRecord `json:"cdrIbs,omitempty"`
+	CdrObs      []CallRecord `json:"cdrObs,omitempty"`
 }
 
 // ListResponse represents a list response
