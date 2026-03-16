@@ -13,24 +13,45 @@ servers:
   - url: https://api-sh.clink.cn
     description: 上海平台
 
+# 按功能模块组织标签
+tags:
+  - name: CallRecords
+    description: 通话记录查询
+  - name: AgentStatus
+    description: 座席状态管理
+  - name: CallControl
+    description: 呼叫控制（外呼、转接、保持等）
+  - name: Queue
+    description: 队列管理
+  - name: AgentManagement
+    description: 座席管理
+  - name: Statistics
+    description: 统计报表
+
 paths:
+  # ==================== 通话记录 ====================
   /cc/list_cdr_ibs:
     get:
       summary: 查询呼入通话记录列表
+      description: 查询呼入通话记录列表，支持时间范围、客户号码、座席号等条件筛选
       operationId: listCdrIbs
+      tags:
+        - CallRecords
       parameters:
         - name: startTime
           in: query
           required: true
           schema:
-            type: string
-          description: 开始时间(YYYY-MM-DD HH:MM:SS)
+            type: integer
+            format: int64
+          description: 开始时间(Unix时间戳秒)
         - name: endTime
           in: query
           required: true
           schema:
-            type: string
-          description: 结束时间(YYYY-MM-DD HH:MM:SS)
+            type: integer
+            format: int64
+          description: 结束时间(Unix时间戳秒)
         - name: customerNumber
           in: query
           schema:
@@ -61,46 +82,67 @@ paths:
               schema:
                 type: object
                 properties:
+                  requestId:
+                    type: string
+                    description: 请求ID
+                  pageNumber:
+                    type: integer
+                    description: 页码
+                  pageSize:
+                    type: integer
+                    description: 每页条数
+                  totalCount:
+                    type: integer
+                    description: 总记录数
                   cdrIb:
                     type: array
                     items:
-                      $ref: '#/components/schemas/CallRecord'
-                  totalCount:
-                    type: integer
+                      $ref: '#/components/schemas/InboundCallRecord'
 
   /cc/list_cdr_obs:
     get:
       summary: 查询外呼通话记录列表
+      description: 查询外呼通话记录列表，支持时间范围、客户号码、座席号等条件筛选
       operationId: listCdrObs
+      tags:
+        - CallRecords
       parameters:
         - name: startTime
           in: query
           required: true
           schema:
-            type: string
+            type: integer
+            format: int64
+          description: 开始时间(Unix时间戳秒)
         - name: endTime
           in: query
           required: true
           schema:
-            type: string
+            type: integer
+            format: int64
+          description: 结束时间(Unix时间戳秒)
         - name: customerNumber
           in: query
           schema:
             type: string
+          description: 客户号码筛选
         - name: cno
           in: query
           schema:
             type: string
+          description: 座席号筛选
         - name: offset
           in: query
           schema:
             type: integer
             default: 0
+          description: 偏移量
         - name: limit
           in: query
           schema:
             type: integer
             default: 10
+          description: 查询条数(10-100)
       responses:
         '200':
           description: 成功
@@ -109,18 +151,804 @@ paths:
               schema:
                 type: object
                 properties:
-                  cdrOb:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/CallRecord'
+                  requestId:
+                    type: string
+                  pageNumber:
+                    type: integer
+                  pageSize:
+                    type: integer
                   totalCount:
                     type: integer
+                  cdrObs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OutboundCallRecord'
 
+  /cc/list_cdr_web_call:
+    get:
+      summary: 查询WebCall通话记录列表
+      description: 查询WebCall通话记录列表
+      operationId: listCdrWebCall
+      tags:
+        - CallRecords
+      parameters:
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 开始时间(Unix时间戳秒)
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 结束时间(Unix时间戳秒)
+        - name: customerNumber
+          in: query
+          schema:
+            type: string
+          description: 客户号码
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: 偏移量
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: 查询条数(10-100)
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  totalCount:
+                    type: integer
+                  cdrWebCall:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebCallRecord'
+
+  /cc/detail_cdr_ib:
+    get:
+      summary: 查询呼入通话记录详情
+      description: 根据通话ID查询呼入通话记录详情
+      operationId: detailCdrIb
+      tags:
+        - CallRecords
+      parameters:
+        - name: callId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 通话记录ID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/InboundCallRecord'
+
+  /cc/describe_record_file_url:
+    get:
+      summary: 获取录音文件URL
+      description: 根据通话ID获取录音文件下载URL
+      operationId: describeRecordFileUrl
+      tags:
+        - CallRecords
+      parameters:
+        - name: callId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 通话记录ID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  url:
+                    type: string
+                    description: 录音文件URL
+
+  # ==================== 座席状态 ====================
   /cc/agent_status:
     get:
-      summary: 查询座席状态
-      operationId: getAgentStatus
+      summary: 查询座席状态列表
+      description: 查询所有座席或指定座席的当前状态
+      operationId: listAgentStatus
+      tags:
+        - AgentStatus
       parameters:
+        - name: cno
+          in: query
+          schema:
+            type: string
+          description: 座席号(可选，不传则查询所有座席)
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  totalCount:
+                    type: integer
+                  pageNumber:
+                    type: integer
+                  pageSize:
+                    type: integer
+                  agentStatus:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AgentStatus'
+
+  /cc/online:
+    post:
+      summary: 座席登录
+      description: 座席登录上线
+      operationId: online
+      tags:
+        - AgentStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnlineRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/offline:
+    post:
+      summary: 座席登出
+      description: 座席退出登录
+      operationId: offline
+      tags:
+        - AgentStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/pause:
+    post:
+      summary: 置忙
+      description: 将座席状态设置为忙碌（小休）
+      operationId: pause
+      tags:
+        - AgentStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+                pauseType:
+                  type: integer
+                  description: 忙碌类型
+                description:
+                  type: string
+                  description: 忙碌原因描述
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/unpause:
+    post:
+      summary: 置闲
+      description: 将座席状态设置为空闲（可接听）
+      operationId: unpause
+      tags:
+        - AgentStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ==================== 呼叫控制 ====================
+  /cc/callout:
+    post:
+      summary: 座席外呼
+      description: 座席发起外呼呼叫
+      operationId: callout
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+                customerNumber:
+                  type: string
+                  description: 客户号码
+                clid:
+                  type: string
+                  description: 外显号码
+                requestUniqueId:
+                  type: string
+                  description: 请求唯一ID（用于防重放）
+              required:
+                - cno
+                - customerNumber
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/CallResult'
+
+  /cc/webcall:
+    post:
+      summary: WebCall外呼
+      description: 无需座席的WebCall外呼（直接呼叫客户并播放IVR）
+      operationId: webcall
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerNumber:
+                  type: string
+                  description: 客户号码
+                clid:
+                  type: string
+                  description: 外显号码
+                ivrName:
+                  type: string
+                  description: IVR流程名称
+                requestUniqueId:
+                  type: string
+                  description: 请求唯一ID
+                amd:
+                  type: integer
+                  description: 是否开启语音检测(0-否,1-是)
+                delay:
+                  type: integer
+                  description: 延迟呼叫时间(秒)
+                ring:
+                  type: integer
+                  description: 响铃时长(秒)
+                queueName:
+                  type: string
+                  description: 接听队列名称
+                variables:
+                  type: object
+                  description: IVR变量
+              required:
+                - customerNumber
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  result:
+                    type: object
+                    properties:
+                      requestUniqueId:
+                        type: string
+                        description: 请求唯一ID
+
+  /cc/callout_cancel:
+    post:
+      summary: 取消外呼
+      description: 取消正在发起的外呼
+      operationId: calloutCancel
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/unlink:
+    post:
+      summary: 挂断电话
+      description: 挂断当前通话
+      operationId: unlink
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/hold:
+    post:
+      summary: 保持通话
+      description: 将当前通话保持（客户听到等待音乐）
+      operationId: hold
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/unhold:
+    post:
+      summary: 恢复通话
+      description: 恢复被保持的通话
+      operationId: unhold
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/transfer:
+    post:
+      summary: 转接电话
+      description: 将当前通话转接给其他座席或队列
+      operationId: transfer
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+                transferType:
+                  type: integer
+                  description: 转接类型(1-转座席,2-转队列,3-转外线)
+                transferObject:
+                  type: string
+                  description: 转接对象（座席号/队列号/外线号码）
+                transferTimeout:
+                  type: integer
+                  description: 转接超时时间(秒)
+              required:
+                - cno
+                - transferType
+                - transferObject
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/consult:
+    post:
+      summary: 咨询
+      description: 发起咨询（与第三方通话，客户保持）
+      operationId: consult
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+                consultType:
+                  type: integer
+                  description: 咨询类型(1-咨询座席,2-咨询队列,3-咨询外线)
+                consultObject:
+                  type: string
+                  description: 咨询对象
+              required:
+                - cno
+                - consultType
+                - consultObject
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/consult_transfer:
+    post:
+      summary: 咨询转接
+      description: 将客户转接给被咨询方
+      operationId: consultTransfer
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/mute:
+    post:
+      summary: 静音
+      description: 座席静音（客户听不到座席声音）
+      operationId: mute
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /cc/unmute:
+    post:
+      summary: 取消静音
+      description: 取消座席静音
+      operationId: unmute
+      tags:
+        - CallControl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cno:
+                  type: string
+                  description: 座席号
+              required:
+                - cno
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ==================== 队列管理 ====================
+  /cc/queue_status:
+    get:
+      summary: 查询队列状态
+      description: 查询队列的实时状态，包括等待人数、在线座席等
+      operationId: getQueueStatus
+      tags:
+        - Queue
+      parameters:
+        - name: qnos
+          in: query
+          schema:
+            type: string
+          description: 队列号(多个用逗号分隔)
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  queueStatus:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QueueStatus'
+
+  /cc/list_queues:
+    get:
+      summary: 查询队列列表
+      description: 查询企业所有队列信息
+      operationId: listQueues
+      tags:
+        - Queue
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: 偏移量
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: 查询条数
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  totalCount:
+                    type: integer
+                  queues:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Queue'
+
+  # ==================== 座席管理 ====================
+  /cc/list_clients:
+    get:
+      summary: 查询座席列表
+      description: 查询企业所有座席信息
+      operationId: listClients
+      tags:
+        - AgentManagement
+      parameters:
+        - name: cnos
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: 座席号列表(可选)
+        - name: qno
+          in: query
+          schema:
+            type: string
+          description: 队列号(可选，查询该队列下的座席)
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: 偏移量
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: 查询条数
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  totalCount:
+                    type: integer
+                  objects:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+
+  /cc/describe_client:
+    get:
+      summary: 查询座席详情
+      description: 查询单个座席的详细信息
+      operationId: describeClient
+      tags:
+        - AgentManagement
+      parameters:
+        - name: cno
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 座席号
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requestId:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Agent'
+
+  # ==================== 统计报表 ====================
+  /cc/stat_client:
+    get:
+      summary: 座席统计
+      description: 查询座席工作数据统计
+      operationId: statClient
+      tags:
+        - Statistics
+      parameters:
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 开始时间(Unix时间戳秒)
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: 结束时间(Unix时间戳秒)
         - name: cno
           in: query
           schema:
@@ -134,62 +962,41 @@ paths:
               schema:
                 type: object
                 properties:
-                  totalCount:
-                    type: integer
-                  result:
+                  requestId:
+                    type: string
+                  objects:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Agent'
-
-  /cc/callout:
-    post:
-      summary: 发起外呼
-      operationId: callout
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                customerNumber:
-                  type: string
-                  description: 客户号码
-                cno:
-                  type: string
-                  description: 座席号
-                clid:
-                  type: string
-                  description: 外显号码
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CallResult'
-
-  /cc/queue_status:
-    get:
-      summary: 查询队列状态
-      operationId: getQueueStatus
-      parameters:
-        - name: qno
-          in: query
-          schema:
-            type: string
-          description: 队列号(可选)
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Queue'
+                      $ref: '#/components/schemas/AgentStat'
 
 components:
   schemas:
-    CallRecord:
+    # ==================== 基础响应 ====================
+    SuccessResponse:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: 请求ID
+
+    ErrorResponse:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: 请求ID
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: 错误码
+            message:
+              type: string
+              description: 错误信息
+
+    # ==================== 通话记录 ====================
+    InboundCallRecord:
       type: object
       properties:
         callId:
@@ -204,6 +1011,88 @@ components:
         agentName:
           type: string
           description: 座席姓名
+        hotline:
+          type: string
+          description: 热线号码
+        startTime:
+          type: string
+          description: 开始时间
+        endTime:
+          type: string
+          description: 结束时间
+        callDuration:
+          type: integer
+          description: 通话时长(秒)
+        waitDuration:
+          type: integer
+          description: 等待时长(秒)
+        status:
+          type: string
+          description: 通话状态(answered-已接听,abandoned-已放弃)
+        recordFile:
+          type: string
+          description: 录音文件URL
+        queueUpTime:
+          type: string
+          description: 排队开始时间
+        queueUpEndTime:
+          type: string
+          description: 排队结束时间
+        ivrPath:
+          type: string
+          description: IVR路径
+        satisfaction:
+          type: integer
+          description: 满意度评分
+
+    OutboundCallRecord:
+      type: object
+      properties:
+        callId:
+          type: string
+          description: 通话记录ID
+        customerNumber:
+          type: string
+          description: 客户号码
+        cno:
+          type: string
+          description: 座席号
+        agentName:
+          type: string
+          description: 座席姓名
+        clid:
+          type: string
+          description: 外显号码
+        startTime:
+          type: integer
+          format: int64
+          description: 开始时间(Unix时间戳秒)
+        endTime:
+          type: integer
+          format: int64
+          description: 结束时间(Unix时间戳秒)
+        callDuration:
+          type: integer
+          description: 通话时长(秒)
+        status:
+          type: string
+          description: 通话状态(answered-已接听,noAnswer-未接听)
+        recordFile:
+          type: string
+          description: 录音文件URL
+        callType:
+          type: string
+          description: 呼叫类型(webCall,预览外呼等)
+
+    WebCallRecord:
+      type: object
+      properties:
+        callId:
+          type: string
+          description: 通话记录ID
+        customerNumber:
+          type: string
+          description: 客户号码
         startTime:
           type: string
           description: 开始时间
@@ -219,6 +1108,47 @@ components:
         recordFile:
           type: string
           description: 录音文件URL
+        ivrName:
+          type: string
+          description: IVR名称
+
+    # ==================== 座席相关 ====================
+    AgentStatus:
+      type: object
+      properties:
+        cno:
+          type: string
+          description: 座席号
+        clientName:
+          type: string
+          description: 座席姓名
+        agentStatus:
+          type: string
+          description: 状态(空闲-在线,置忙-忙碌,离线-离线)
+        customerStatus:
+          type: string
+          description: 客户状态
+        bindTel:
+          type: string
+          description: 绑定电话
+        bindType:
+          type: integer
+          description: 绑定类型
+        queueInfo:
+          type: string
+          description: 队列信息
+        loginDuration:
+          type: integer
+          description: 登录时长
+        stateDuration:
+          type: integer
+          description: 状态持续时长
+        obCallCount:
+          type: integer
+          description: 外呼次数
+        obBridgeDuration:
+          type: integer
+          description: 外呼通话时长
 
     Agent:
       type: object
@@ -229,17 +1159,56 @@ components:
         name:
           type: string
           description: 座席姓名
-        status:
+        role:
+          type: integer
+          description: 角色(1-普通座席,2-班长座席)
+        active:
+          type: integer
+          description: 状态(0-禁用,1-启用)
+        qnos:
+          type: array
+          items:
+            type: string
+          description: 所属队列号列表
+        bindTel:
           type: string
-          description: 状态(online/offline/pause等)
-        callId:
+          description: 绑定电话
+        bindType:
+          type: integer
+          description: 绑定类型(1-分机,2-直线,3-软电话)
+        createTime:
           type: string
-          description: 当前通话ID
-        loginTime:
-          type: string
-          description: 登录时间
+          description: 创建时间
 
-    Queue:
+    OnlineRequest:
+      type: object
+      properties:
+        cno:
+          type: string
+          description: 座席号
+        qno:
+          type: string
+          description: 登录队列号
+        bindTel:
+          type: string
+          description: 绑定电话号码
+        bindType:
+          type: integer
+          description: 绑定类型(1-分机,2-直线,3-软电话)
+        deviceId:
+          type: string
+          description: 设备ID（软电话登录时使用）
+        password:
+          type: string
+          description: 座席密码
+        loginType:
+          type: integer
+          description: 登录类型(1-预览外呼,2-预测外呼)
+      required:
+        - cno
+
+    # ==================== 队列相关 ====================
+    QueueStatus:
       type: object
       properties:
         qno:
@@ -260,7 +1229,30 @@ components:
         busyAgentCount:
           type: integer
           description: 忙碌座席数
+        readyAgentCount:
+          type: integer
+          description: 空闲座席数
 
+    Queue:
+      type: object
+      properties:
+        qno:
+          type: string
+          description: 队列号
+        name:
+          type: string
+          description: 队列名称
+        hotline:
+          type: string
+          description: 热线号码
+        createTime:
+          type: string
+          description: 创建时间
+        status:
+          type: integer
+          description: 状态(0-禁用,1-启用)
+
+    # ==================== 呼叫相关 ====================
     CallResult:
       type: object
       properties:
@@ -272,4 +1264,30 @@ components:
           description: 客户号码
         status:
           type: string
-          description: 呼叫状态
+          description: 呼叫状态(dialing-振铃中,answered-已接听)
+
+    # ==================== 统计相关 ====================
+    AgentStat:
+      type: object
+      properties:
+        cno:
+          type: string
+          description: 座席号
+        totalCalls:
+          type: integer
+          description: 总通话数
+        totalDuration:
+          type: integer
+          description: 总通话时长(秒)
+        avgDuration:
+          type: integer
+          description: 平均通话时长(秒)
+        loginTime:
+          type: integer
+          description: 登录时长(秒)
+        onlineTime:
+          type: integer
+          description: 在线时长(秒)
+        pauseTime:
+          type: integer
+          description: 忙碌时长(秒)

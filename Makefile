@@ -1,8 +1,12 @@
 # Generate code from OpenAPI spec
+OAPI_CODEGEN := $(shell go env GOPATH)/bin/oapi-codegen
+
 generate:
 	@echo "Generating code from OpenAPI spec..."
-	@go run scripts/generate.go api/openapi.yaml
-	@echo "Code generation complete!"
+	@test -f $(OAPI_CODEGEN) || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+	@mkdir -p pkg/generated
+	@$(OAPI_CODEGEN) -generate types,client -package generated api/openapi.yaml > pkg/generated/clink.gen.go
+	@echo "Code generation complete! pkg/generated/clink.gen.go"
 
 # Build all binaries
 build:
