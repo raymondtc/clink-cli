@@ -4,8 +4,8 @@ package client
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,10 +21,10 @@ import (
 
 // Config holds the client configuration
 type Config struct {
-	AccessID      string
-	AccessSecret  string
-	EnterpriseID  string
-	BaseURL       string
+	AccessID      string // AccessKeyId
+	AccessSecret  string // AccessKeySecret
+	EnterpriseID  string // 企业ID，某些API需要
+	BaseURL       string // 如: https://api-sh.clink.cn
 	Timeout       time.Duration
 	EnableMock    bool
 }
@@ -33,7 +32,7 @@ type Config struct {
 // DefaultConfig returns default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		BaseURL:    "https://api.clink.cn",
+		BaseURL:    "https://api-sh.clink.cn",
 		Timeout:    30 * time.Second,
 		EnableMock: true,
 	}
@@ -58,53 +57,63 @@ func NewClient(config *Config) *Client {
 	}
 }
 
-// SetMock enables or disables mock mode
-func (c *Client) SetMock(enable bool) {
-	c.config.EnableMock = enable
-}
-
-// generateSignature creates HMAC-SHA256 signature
-func (c *Client) generateSignature(params map[string]string) string {
-	// Sort keys
+// generateSignature creates HMAC-SHA1 signature for Clink API
+// 格式: GET + host + path + sorted query params
+func (c *Client) generateSignature(method, host, path string, params map[string]string) string {
+	// 1. 对参数名排序
 	keys := make([]string, 0, len(params))
 	for k := range params {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
-	// Build param string
+	// 2. 构建查询字符串 (name=value&name=value...)
 	var parts []string
 	for _, k := range keys {
-		parts = append(parts, fmt.Sprintf("%s=%s", k, params[k]))
+		// URL encode value
+		encodedValue := url.QueryEscape(params[k])
+		parts = append(parts, fmt.Sprintf("%s=%s", k, encodedValue))
 	}
-	paramStr := strings.Join(parts, "")
+	queryString := strings.Join(parts, "&")
 
-	// Generate HMAC
-	h := hmac.New(sha256.New, []byte(c.config.AccessSecret))
-	h.Write([]byte(paramStr))
-	return hex.EncodeToString(h.Sum(nil))
+	// 3. 构建待签名字符串: METHOD + host + path + ? + queryString
+	stringToSign := fmt.Sprintf("%s%s%s?%s", method, host, path, queryString)
+
+	// 4. HMAC-SHA1
+	h := hmac.New(sha1.New, []byte(c.config.AccessSecret))
+	h.Write([]byte(stringToSign))
+
+	// 5. Base64 + URL Encode
+	signature := base64.StdEncoding.EncodeToString(h.Sum(nil))
+	return url.QueryEscape(signature)
 }
 
 // Request makes an HTTP request
 func (c *Client) Request(ctx context.Context, method, path string, params map[string]string, body io.Reader) (*models.APIResponse, error) {
-	// Add common params
 	if params == nil {
 		params = make(map[string]string)
 	}
-	params["accessId"] = c.config.AccessID
-	if c.config.EnterpriseID != "" {
-		params["enterpriseId"] = c.config.EnterpriseID
-	}
-	params["timestamp"] = strconv.FormatInt(time.Now().UnixMilli(), 10)
-	params["signature"] = c.generateSignature(params)
 
-	// Build URL
-	u, _ := url.Parse(c.config.BaseURL + path)
-	q := u.Query()
+	// 解析 BaseURL 获取 host
+	u, _ := url.Parse(c.config.BaseURL)
+	host := u.Host
+
+	// 添加公共参数
+	params["AccessKeyId"] = c.config.AccessID
+	params["Expires"] = "60"
+	// UTC 时间格式: yyyy-MM-ddTHH:mm:ssZ
+	params["Timestamp"] = time.Now().UTC().Format("2006-01-02T15:04:05Z")
+
+	// 计算签名
+	params["Signature"] = c.generateSignature(method, host, path, params)
+
+	// 构建完整 URL
+	fullURL := c.config.BaseURL + path + "?"
+	var queryParts []string
 	for k, v := range params {
-		q.Set(k, v)
+		queryParts = append(queryParts, fmt.Sprintf("%s=%s", k, url.QueryEscape(v)))
 	}
-	u.RawQuery = q.Encode()
+	fullURL += strings.Join(queryParts, "&")
 
 	// Mock mode
 	if c.config.EnableMock {
@@ -112,7 +121,7 @@ func (c *Client) Request(ctx context.Context, method, path string, params map[st
 	}
 
 	// Make request
-	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
+	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
 	if err != nil {
 		return nil, err
 	}
@@ -127,12 +136,12 @@ func (c *Client) Request(ctx context.Context, method, path string, params map[st
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
-	
+
 	// Debug: print response
-	fmt.Fprintf(os.Stderr, "Debug: API URL: %s\n", u.String())
+	fmt.Fprintf(os.Stderr, "Debug: API URL: %s\n", fullURL)
 	fmt.Fprintf(os.Stderr, "Debug: Status: %d\n", resp.StatusCode)
 	fmt.Fprintf(os.Stderr, "Debug: Response: %s\n", string(respBody[:min(len(respBody), 500)]))
-	
+
 	var result models.APIResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, err
@@ -143,7 +152,7 @@ func (c *Client) Request(ctx context.Context, method, path string, params map[st
 
 // mockResponse returns mock data for testing
 func (c *Client) mockResponse(path string, params map[string]string) *models.APIResponse {
-	if strings.Contains(path, "callin") || strings.Contains(path, "inbound") {
+	if strings.Contains(path, "list_cdr_ibs") {
 		return &models.APIResponse{
 			Code:    200,
 			Message: "success",
@@ -161,22 +170,12 @@ func (c *Client) mockResponse(path string, params map[string]string) *models.API
 						Status:       "answered",
 						RecordingURL: "https://example.com/recording1.mp3",
 					},
-					{
-						ID:        "202401010002",
-						Phone:     "13800138002",
-						AgentID:   "1002",
-						AgentName: "李四",
-						StartTime: "2024-01-01 10:00:00",
-						EndTime:   "2024-01-01 10:02:00",
-						Duration:  120,
-						Status:    "missed",
-					},
 				},
 			},
 		}
 	}
 
-	if strings.Contains(path, "callout") || strings.Contains(path, "outbound") {
+	if strings.Contains(path, "list_cdr_obs") {
 		return &models.APIResponse{
 			Code:    200,
 			Message: "success",
@@ -199,7 +198,7 @@ func (c *Client) mockResponse(path string, params map[string]string) *models.API
 		}
 	}
 
-	if strings.Contains(path, "agent") {
+	if strings.Contains(path, "agent_status") {
 		return &models.APIResponse{
 			Code:    200,
 			Message: "success",
@@ -212,24 +211,24 @@ func (c *Client) mockResponse(path string, params map[string]string) *models.API
 						Status:    "online",
 						LoginTime: "2024-01-01 08:00:00",
 					},
-					{
-						AgentID:     "1002",
-						AgentName:   "李四",
-						Status:      "busy",
-						CurrentCall: "202401010004",
-						LoginTime:   "2024-01-01 08:30:00",
-					},
-					{
-						AgentID:   "1003",
-						AgentName: "王五",
-						Status:    "offline",
-					},
 				},
 			},
 		}
 	}
 
-	if strings.Contains(path, "queue") {
+	if strings.Contains(path, "callout") {
+		return &models.APIResponse{
+			Code:    200,
+			Message: "success",
+			Data: models.CallResult{
+				CallID: "202401010005",
+				Status: "dialing",
+				Phone:  params["customerNumber"],
+			},
+		}
+	}
+
+	if strings.Contains(path, "queue_status") {
 		return &models.APIResponse{
 			Code:    200,
 			Message: "success",
@@ -240,18 +239,6 @@ func (c *Client) mockResponse(path string, params map[string]string) *models.API
 				AvgWaitTime:  120,
 				AgentsOnline: 3,
 				AgentsBusy:   2,
-			},
-		}
-	}
-
-	if strings.Contains(path, "dial") || strings.Contains(path, "call") {
-		return &models.APIResponse{
-			Code:    200,
-			Message: "success",
-			Data: models.CallResult{
-				CallID: "202401010005",
-				Status: "dialing",
-				Phone:  params["phone"],
 			},
 		}
 	}

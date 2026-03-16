@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/raymondtc/clink-cli/pkg/client"
 	"github.com/raymondtc/clink-cli/pkg/models"
@@ -24,9 +25,27 @@ func NewAPI(client *client.Client) *API {
 // GetInboundRecords gets inbound call records
 // API: GET /cc/list_cdr_ibs
 func (a *API) GetInboundRecords(ctx context.Context, startTime, endTime, phone, agentID string, page, pageSize int) ([]models.CallRecord, int, error) {
+	// 尝试解析不同格式的时间
+	var start, end time.Time
+	var err error
+	
+	// 尝试解析完整格式
+	start, err = time.Parse("2006-01-02 15:04:05", startTime)
+	if err != nil {
+		// 尝试只解析日期，然后加上时间
+		start, _ = time.Parse("2006-01-02", startTime)
+		start = start.Add(0) // 00:00:00
+	}
+	
+	end, err = time.Parse("2006-01-02 15:04:05", endTime)
+	if err != nil {
+		end, _ = time.Parse("2006-01-02", endTime)
+		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second) // 23:59:59
+	}
+	
 	params := map[string]string{
-		"startTime": startTime,
-		"endTime":   endTime,
+		"startTime": strconv.FormatInt(start.UnixMilli(), 10),
+		"endTime":   strconv.FormatInt(end.UnixMilli(), 10),
 		"offset":    strconv.Itoa((page - 1) * pageSize),
 		"limit":     strconv.Itoa(pageSize),
 	}
@@ -60,9 +79,27 @@ func (a *API) GetInboundRecords(ctx context.Context, startTime, endTime, phone, 
 // GetOutboundRecords gets outbound call records
 // API: GET /cc/list_cdr_obs
 func (a *API) GetOutboundRecords(ctx context.Context, startTime, endTime, phone, agentID string, page, pageSize int) ([]models.CallRecord, int, error) {
+	// 尝试解析不同格式的时间
+	var start, end time.Time
+	var err error
+	
+	// 尝试解析完整格式
+	start, err = time.Parse("2006-01-02 15:04:05", startTime)
+	if err != nil {
+		// 尝试只解析日期，然后加上时间
+		start, _ = time.Parse("2006-01-02", startTime)
+		start = start.Add(0) // 00:00:00
+	}
+	
+	end, err = time.Parse("2006-01-02 15:04:05", endTime)
+	if err != nil {
+		end, _ = time.Parse("2006-01-02", endTime)
+		end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second) // 23:59:59
+	}
+	
 	params := map[string]string{
-		"startTime": startTime,
-		"endTime":   endTime,
+		"startTime": strconv.FormatInt(start.UnixMilli(), 10),
+		"endTime":   strconv.FormatInt(end.UnixMilli(), 10),
 		"offset":    strconv.Itoa((page - 1) * pageSize),
 		"limit":     strconv.Itoa(pageSize),
 	}
