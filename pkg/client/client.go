@@ -170,6 +170,16 @@ func (c *Client) mockResponse(path string, params map[string]string) *models.API
 						Status:       "answered",
 						RecordingURL: "https://example.com/recording1.mp3",
 					},
+					{
+						ID:        "202401010002",
+						Phone:     "13800138002",
+						AgentID:   "1002",
+						AgentName: "李四",
+						StartTime: "2024-01-01 10:00:00",
+						EndTime:   "2024-01-01 10:02:00",
+						Duration:  120,
+						Status:    "missed",
+					},
 				},
 			},
 		}
@@ -202,15 +212,24 @@ func (c *Client) mockResponse(path string, params map[string]string) *models.API
 		return &models.APIResponse{
 			Code:    200,
 			Message: "success",
-			Data: models.ListResponse{
-				Total: 3,
-				List: []models.Agent{
-					{
-						AgentID:   "1001",
-						AgentName: "张三",
-						Status:    "online",
-						LoginTime: "2024-01-01 08:00:00",
-					},
+			TotalCount: 3,
+			AgentStatus: []models.Agent{
+				{
+					AgentID:   "1001",
+					AgentName: "张三",
+					Status:    "online",
+					LoginTime: "2024-01-01 08:00:00",
+				},
+				{
+					AgentID:   "1002",
+					AgentName: "李四",
+					Status:    "busy",
+					LoginTime: "2024-01-01 08:30:00",
+				},
+				{
+					AgentID:   "1003",
+					AgentName: "王五",
+					Status:    "offline",
 				},
 			},
 		}
