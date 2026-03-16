@@ -22,21 +22,22 @@ func NewAPI(client *client.Client) *API {
 }
 
 // GetInboundRecords gets inbound call records
+// API: GET /cc/list_cdr_ibs
 func (a *API) GetInboundRecords(ctx context.Context, startTime, endTime, phone, agentID string, page, pageSize int) ([]models.CallRecord, int, error) {
 	params := map[string]string{
 		"startTime": startTime,
 		"endTime":   endTime,
-		"page":      strconv.Itoa(page),
-		"pageSize":  strconv.Itoa(pageSize),
+		"offset":    strconv.Itoa((page - 1) * pageSize),
+		"limit":     strconv.Itoa(pageSize),
 	}
 	if phone != "" {
-		params["phone"] = phone
+		params["customerNumber"] = phone
 	}
 	if agentID != "" {
-		params["agentId"] = agentID
+		params["cno"] = agentID
 	}
 
-	resp, err := a.client.Request(ctx, "GET", "/api/callin/records", params, nil)
+	resp, err := a.client.Request(ctx, "GET", "/cc/list_cdr_ibs", params, nil)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -57,21 +58,22 @@ func (a *API) GetInboundRecords(ctx context.Context, startTime, endTime, phone, 
 }
 
 // GetOutboundRecords gets outbound call records
+// API: GET /cc/list_cdr_obs
 func (a *API) GetOutboundRecords(ctx context.Context, startTime, endTime, phone, agentID string, page, pageSize int) ([]models.CallRecord, int, error) {
 	params := map[string]string{
 		"startTime": startTime,
 		"endTime":   endTime,
-		"page":      strconv.Itoa(page),
-		"pageSize":  strconv.Itoa(pageSize),
+		"offset":    strconv.Itoa((page - 1) * pageSize),
+		"limit":     strconv.Itoa(pageSize),
 	}
 	if phone != "" {
-		params["phone"] = phone
+		params["customerNumber"] = phone
 	}
 	if agentID != "" {
-		params["agentId"] = agentID
+		params["cno"] = agentID
 	}
 
-	resp, err := a.client.Request(ctx, "GET", "/api/callout/records", params, nil)
+	resp, err := a.client.Request(ctx, "GET", "/cc/list_cdr_obs", params, nil)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -92,13 +94,14 @@ func (a *API) GetOutboundRecords(ctx context.Context, startTime, endTime, phone,
 }
 
 // GetAgentStatus gets agent status
+// API: GET /cc/agent_status
 func (a *API) GetAgentStatus(ctx context.Context, agentID string) ([]models.Agent, error) {
 	params := map[string]string{}
 	if agentID != "" {
-		params["agentId"] = agentID
+		params["cno"] = agentID
 	}
 
-	resp, err := a.client.Request(ctx, "GET", "/api/agents/status", params, nil)
+	resp, err := a.client.Request(ctx, "GET", "/cc/agent_status", params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -119,17 +122,18 @@ func (a *API) GetAgentStatus(ctx context.Context, agentID string) ([]models.Agen
 }
 
 // MakeCall makes an outbound call
+// API: POST /cc/callout
 func (a *API) MakeCall(ctx context.Context, phone, agentID, displayNumber string) (*models.CallResult, error) {
 	body := map[string]string{
-		"phone":   phone,
-		"agentId": agentID,
+		"customerNumber": phone,
+		"cno":            agentID,
 	}
 	if displayNumber != "" {
-		body["displayNumber"] = displayNumber
+		body["clid"] = displayNumber
 	}
 
 	bodyJSON, _ := json.Marshal(body)
-	resp, err := a.client.Request(ctx, "POST", "/api/call/dial", nil, strings.NewReader(string(bodyJSON)))
+	resp, err := a.client.Request(ctx, "POST", "/cc/callout", nil, strings.NewReader(string(bodyJSON)))
 	if err != nil {
 		return nil, err
 	}
@@ -144,13 +148,14 @@ func (a *API) MakeCall(ctx context.Context, phone, agentID, displayNumber string
 }
 
 // GetQueueStatus gets queue status
+// API: GET /cc/queue_status
 func (a *API) GetQueueStatus(ctx context.Context, queueID string) (*models.Queue, error) {
 	params := map[string]string{}
 	if queueID != "" {
-		params["queueId"] = queueID
+		params["qno"] = queueID
 	}
 
-	resp, err := a.client.Request(ctx, "GET", "/api/monitor/queue", params, nil)
+	resp, err := a.client.Request(ctx, "GET", "/cc/queue_status", params, nil)
 	if err != nil {
 		return nil, err
 	}

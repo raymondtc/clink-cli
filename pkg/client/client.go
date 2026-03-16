@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -126,6 +127,12 @@ func (c *Client) Request(ctx context.Context, method, path string, params map[st
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
+	
+	// Debug: print response
+	fmt.Fprintf(os.Stderr, "Debug: API URL: %s\n", u.String())
+	fmt.Fprintf(os.Stderr, "Debug: Status: %d\n", resp.StatusCode)
+	fmt.Fprintf(os.Stderr, "Debug: Response: %s\n", string(respBody[:min(len(respBody), 500)]))
+	
 	var result models.APIResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, err
@@ -254,4 +261,11 @@ func (c *Client) mockResponse(path string, params map[string]string) *models.API
 		Message: "success",
 		Data:    map[string]interface{}{},
 	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
