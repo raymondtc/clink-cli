@@ -143,15 +143,15 @@ func (a *API) GetAgentStatus(ctx context.Context, agentID string) ([]models.Agen
 		return nil, err
 	}
 
-	data, _ := json.Marshal(resp.Data)
-	var listResp models.ListResponse
-	if err := json.Unmarshal(data, &listResp); err != nil {
-		return nil, err
+	// 天润API直接返回数组在agentStatus字段
+	if resp.AgentStatus != nil {
+		return resp.AgentStatus, nil
 	}
 
-	agentsData, _ := json.Marshal(listResp.List)
+	// 尝试从Data解析（兼容旧格式）
+	data, _ := json.Marshal(resp.Data)
 	var agents []models.Agent
-	if err := json.Unmarshal(agentsData, &agents); err != nil {
+	if err := json.Unmarshal(data, &agents); err != nil {
 		return nil, err
 	}
 
