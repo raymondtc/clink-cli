@@ -103,6 +103,19 @@ func handleRequest(a *api.API, req JSONRPCRequest) JSONRPCResponse {
 						},
 					},
 				},
+				{
+					"name":        "make_call",
+					"description": "发起外呼电话",
+					"inputSchema": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"phone":      map[string]string{"type": "string", "description": "电话号码"},
+							"agent_id":   map[string]string{"type": "string", "description": "座席ID"},
+							"display_number": map[string]string{"type": "string", "description": "外显号码（可选）"},
+						},
+						"required": []string{"phone", "agent_id"},
+					},
+				},
 			},
 		}
 	case "tools/call":
@@ -149,6 +162,21 @@ func handleToolCall(a *api.API, name string, args map[string]interface{}) (inter
 			return nil, err
 		}
 		return agents, nil
+
+	case "make_call":
+		phone, _ := args["phone"].(string)
+		agentID, _ := args["agent_id"].(string)
+		displayNumber, _ := args["display_number"].(string)
+
+		result, err := a.MakeCall(ctx, phone, agentID, displayNumber)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"call_id": result.CallID,
+			"status":  result.Status,
+			"phone":   result.Phone,
+		}, nil
 	}
 	
 	return nil, fmt.Errorf("unknown tool: %s", name)
