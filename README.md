@@ -12,30 +12,25 @@
 
 ## 安装
 
-### 二进制下载
+### 一键安装（推荐）
+
+支持 macOS 和 Linux，自动识别系统和架构：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/raymondtc/clink-cli/main/install.sh | bash
+```
+
+或 wget：
+
+```bash
+wget -qO- https://raw.githubusercontent.com/raymondtc/clink-cli/main/install.sh | bash
+```
+
+安装完成后，配置环境变量即可使用。
+
+### 手动安装
 
 从 [GitHub Releases](https://github.com/raymondtc/clink-cli/releases) 下载对应平台的二进制文件。
-
-```bash
-# Linux/macOS
-curl -L https://github.com/raymondtc/clink-cli/releases/latest/download/clink-linux-amd64 -o clink
-chmod +x clink
-sudo mv clink /usr/local/bin/
-
-# 同时安装 MCP Server
-curl -L https://github.com/raymondtc/clink-cli/releases/latest/download/clink-mcp-linux-amd64 -o clink-mcp
-chmod +x clink-mcp
-sudo mv clink-mcp /usr/local/bin/
-```
-
-### 源码编译
-
-```bash
-git clone https://github.com/raymondtc/clink-cli.git
-cd clink-cli
-go build -o clink ./cmd/clink
-go build -o clink-mcp ./cmd/clink-mcp
-```
 
 ## 配置
 
