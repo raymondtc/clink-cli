@@ -30,7 +30,16 @@ error() {
 
 # 获取最新版本
 get_latest_version() {
-    curl -s "https://api.github.com/repos/raymondtc/clink-cli/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'
+    # 尝试从 GitHub API 获取
+    local version
+    version=$(curl -s "https://api.github.com/repos/raymondtc/clink-cli/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    
+    # 如果失败，使用默认版本
+    if [ -z "$version" ]; then
+        echo "v1.0.0"
+    else
+        echo "$version"
+    fi
 }
 
 # 检测操作系统
