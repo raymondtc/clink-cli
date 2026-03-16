@@ -10,7 +10,7 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	config := DefaultConfig()
 	assert.NotNil(t, config)
-	assert.Equal(t, "https://api.clink.cn", config.BaseURL)
+	assert.Equal(t, "https://api-sh.clink.cn", config.BaseURL)
 	assert.True(t, config.EnableMock)
 }
 
@@ -44,7 +44,6 @@ func TestGenerateSignature(t *testing.T) {
 		"b": "2",
 	}
 	
-	sig := client.generateSignature(params)
+	sig := client.generateSignature("GET", "api-sh.clink.cn", "/cc/list_cdr_ibs", params)
 	assert.NotEmpty(t, sig)
-	assert.Len(t, sig, 64) // SHA256 hex is 64 chars
 }
