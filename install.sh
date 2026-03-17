@@ -122,15 +122,10 @@ main() {
     # 下载二进制文件
     BASE_URL="https://github.com/raymondtc/clink-cli/releases/download/$VERSION"
     CLI_FILE="clink-${OS}-${ARCH}"
-    MCP_FILE="clink-mcp-${OS}-${ARCH}"
     
     info "下载 clink..."
     download_file "$BASE_URL/$CLI_FILE" "$TMP_DIR/clink"
     chmod +x "$TMP_DIR/clink"
-    
-    info "下载 clink-mcp..."
-    download_file "$BASE_URL/$MCP_FILE" "$TMP_DIR/clink-mcp"
-    chmod +x "$TMP_DIR/clink-mcp"
     
     # 安装路径
     INSTALL_DIR="/usr/local/bin"
@@ -146,7 +141,6 @@ main() {
     # 安装
     info "安装到 $INSTALL_DIR..."
     $SUDO mv "$TMP_DIR/clink" "$INSTALL_DIR/clink"
-    $SUDO mv "$TMP_DIR/clink-mcp" "$INSTALL_DIR/clink-mcp"
     
     # 验证安装
     if command -v clink &> /dev/null; then
@@ -155,12 +149,6 @@ main() {
     else
         error "安装失败，请检查 $INSTALL_DIR 是否在 PATH 中"
         exit 1
-    fi
-    
-    if command -v clink-mcp &> /dev/null; then
-        success "Clink MCP Server 安装成功!"
-    else
-        warning "MCP Server 安装可能失败"
     fi
     
     echo ""
@@ -176,7 +164,7 @@ main() {
     echo "     clink agents"
     echo ""
     echo "  3. 查看文档:"
-    echo "     https://github.com/raymondtc/clink-cli/blob/main/docs/AGENT_MANUAL.md"
+    echo "     https://github.com/raymondtc/clink-cli/blob/main/README.md"
     echo ""
 }
 
