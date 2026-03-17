@@ -68,7 +68,7 @@ func (a *GeneratedAPI) GetInboundRecords(ctx context.Context, startTime, endTime
 	}
 
 	if resp.JSON200 == nil {
-		return nil, 0, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		return nil, 0, fmt.Errorf("unexpected response status: %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 
 	if resp.JSON200.CdrIb == nil {
@@ -111,7 +111,7 @@ func (a *GeneratedAPI) GetOutboundRecords(ctx context.Context, startTime, endTim
 	}
 
 	if resp.JSON200 == nil {
-		return nil, 0, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		return nil, 0, fmt.Errorf("unexpected response status: %d, body: %s", resp.StatusCode(), string(resp.Body))
 	}
 
 	if resp.JSON200.CdrObs == nil {

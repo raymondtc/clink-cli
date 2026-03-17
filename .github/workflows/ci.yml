@@ -31,7 +31,10 @@ jobs:
         go mod download
     
     - name: Generate code from OpenAPI
-      run: go run scripts/generate.go api/openapi.yaml
+      run: |
+        test -f $(go env GOPATH)/bin/oapi-codegen || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+        mkdir -p pkg/generated
+        $(go env GOPATH)/bin/oapi-codegen -generate types,client -package generated api/openapi.yaml > pkg/generated/clink.gen.go
     
     - name: Run tests
       run: go test -v -race ./...
@@ -39,7 +42,6 @@ jobs:
     - name: Build test
       run: |
         go build -v ./cmd/clink
-        go build -v ./cmd/clink-mcp
     
     - name: Check formatting
       run: |
@@ -80,6 +82,12 @@ jobs:
     - name: Download dependencies
       run: go mod download
     
+    - name: Generate code from OpenAPI
+      run: |
+        test -f $(go env GOPATH)/bin/oapi-codegen || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+        mkdir -p pkg/generated
+        $(go env GOPATH)/bin/oapi-codegen -generate types,client -package generated api/openapi.yaml > pkg/generated/clink.gen.go
+    
     - name: Build binaries
       env:
         GOOS: ${{ matrix.os }}
@@ -94,9 +102,6 @@ jobs:
         go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
           -o dist/clink-${{ matrix.os }}-${{ matrix.arch }}${ext} \
           ./cmd/clink
-        go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
-          -o dist/clink-mcp-${{ matrix.os }}-${{ matrix.arch }}${ext} \
-          ./cmd/clink-mcp
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -128,7 +133,7 @@ jobs:
     - name: Create checksums
       run: |
         cd dist
-        sha256sum clink-* clink-mcp-* > checksums.txt || true
+        sha256sum clink-* > checksums.txt || true
         cat checksums.txt
     
     - name: Create Release

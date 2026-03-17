@@ -8,10 +8,9 @@ generate:
 	@$(OAPI_CODEGEN) -generate types,client -package generated api/openapi.yaml > pkg/generated/clink.gen.go
 	@echo "Code generation complete! pkg/generated/clink.gen.go"
 
-# Build all binaries
+# Build CLI binary
 build:
 	go build -o bin/clink ./cmd/clink
-	go build -o bin/clink-mcp ./cmd/clink-mcp
 
 # Run tests
 test:

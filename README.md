@@ -1,14 +1,14 @@
 # Clink CLI
 
-天润融通 AI 友好型 CLI 与 MCP 工具（Go 版本）
+天润融通 AI 友好型 CLI 工具（Go 版本）
 
 ## 特性
 
 - 🚀 **高性能**: Go 编写，单二进制文件，无依赖
 - 🎯 **多平台**: 支持 Linux/macOS/Windows，x64/ARM64
-- 🔧 **双模式**: CLI 工具 + MCP Server
+- 📦 **OpenAPI 驱动**: 基于 OpenAPI 规范自动生成 CLI 参数
+- 🎨 **统一渲染**: 支持表格、JSON 等多种输出格式
 - 🧪 **完整测试**: 单元测试覆盖
-- 📦 **OpenAPI**: 基于 OpenAPI 规范，自定义代码生成器
 
 ## 安装
 
@@ -40,7 +40,6 @@ wget -qO- https://raw.githubusercontent.com/raymondtc/clink-cli/main/install.sh 
 
 - **Access ID / Access Key ID** - API 访问 ID
 - **Access Secret / Secret** - API 访问密钥
-- **Enterprise ID**（可选）- 企业 ID
 
 ### 环境变量
 
@@ -54,9 +53,6 @@ export CLINK_ACCESS_SECRET="your_access_secret"
 # 方式 2：使用 CLINK_ACCESS_KEY_ID 和 CLINK_SECRET
 export CLINK_ACCESS_KEY_ID="your_access_id"
 export CLINK_SECRET="your_access_secret"
-
-# Enterprise ID（可选）
-export CLINK_ENTERPRISE_ID="your_enterprise_id"
 ```
 
 ### 命令行参数
@@ -64,9 +60,19 @@ export CLINK_ENTERPRISE_ID="your_enterprise_id"
 ```bash
 # 使用 --access-id 和 --access-secret
 clink --access-id xxx --access-secret yyy records inbound
+```
 
-# 或使用 --access-key-id 和 --secret
-clink --access-key-id xxx --secret yyy records inbound
+### 全局参数
+
+```bash
+clink --help
+
+Flags:
+      --access-id string       Access ID (env: CLINK_ACCESS_ID or CLINK_ACCESS_KEY_ID)
+      --access-secret string   Access Secret (env: CLINK_ACCESS_SECRET or CLINK_SECRET)
+      --base-url string        API base URL (default: https://api-sh.clink.cn)
+  -h, --help                   help for clink
+  -o, --output string          Output format: table, json (default: "table")
 ```
 
 ## CLI 使用
@@ -82,7 +88,24 @@ clink records outbound --start 2024-01-01 --end 2024-01-31
 
 # 筛选特定座席
 clink records inbound --agent 1001
+
+# 筛选特定电话号码
+clink records inbound --phone 13800138000
+
+# JSON 格式输出
+clink records inbound --start 2024-01-01 --end 2024-01-31 -o json
 ```
+
+**参数说明**（自动生成自 OpenAPI 规范）：
+
+| 参数 | OpenAPI 字段 | 说明 | 默认值 |
+|------|-------------|------|--------|
+| `-s, --start` | startTime | 开始时间 | 7天前 |
+| `-e, --end` | endTime | 结束时间 | 今天 |
+| `-p, --phone` | customerNumber | 客户号码筛选 | - |
+| `-a, --agent` | cno | 座席号筛选 | - |
+| `--offset` | offset | 偏移量 | 0 |
+| `--limit` | limit | 查询条数 | 50 |
 
 ### 查询座席状态
 
@@ -94,85 +117,139 @@ clink agents
 clink agents --agent 1001
 ```
 
+**参数说明**：
+
+| 参数 | OpenAPI 字段 | 说明 |
+|------|-------------|------|
+| `-a, --agent` | cno | 座席号（可选，不传则查询所有） |
+
 ### 发起外呼
 
 ```bash
+# WebCall（无需座席，默认）
+clink call 13800138000
+
+# 指定 IVR 流程
+clink call 13800138000 --ivr "工作时间"
+
+# 指定座席外呼
 clink call 13800138000 --agent 1001
+
+# 指定外显号码
+clink call 13800138000 --clid "01012345678"
 ```
+
+**参数说明**：
+
+| 参数 | OpenAPI 字段 | 说明 | 默认值 |
+|------|-------------|------|--------|
+| `phone` | customerNumber | 客户号码（位置参数） | 必填 |
+| `-a, --agent` | cno | 座席号（指定后使用座席外呼） | - |
+| `--clid` | clid | 外显号码 | - |
+| `--ivr` | ivrName | IVR名称 | 工作时间 |
+| `--request-id` | requestUniqueId | 请求唯一ID（防重放） | - |
 
 ### 查询队列状态
 
 ```bash
+# 查询默认队列
 clink queue
+
+# 指定队列
+clink queue --qnos "queue1,queue2"
 ```
-
-## MCP Server 使用
-
-### OpenClaw 配置
-
-```json
-{
-  "mcpServers": {
-    "clink": {
-      "command": "/usr/local/bin/clink-mcp",
-      "env": {
-        "CLINK_ACCESS_ID": "your_access_id",
-        "CLINK_ACCESS_SECRET": "your_access_secret"
-      }
-    }
-  }
-}
-```
-
-### 可用工具
-
-- `get_inbound_records` - 获取呼入记录
-- `get_outbound_records` - 获取外呼记录
-- `get_agent_status` - 查询座席状态
-- `make_call` - 发起外呼
-- `get_queue_status` - 查询队列状态
-
-详见 [Agent 使用手册](docs/AGENT_MANUAL.md)
 
 ## 项目结构
 
 ```
 clink-cli/
 ├── api/
-│   └── openapi.yaml          # OpenAPI 规范
+│   └── openapi.yaml          # OpenAPI 规范（单一事实源）
 ├── cmd/
-│   ├── clink/                # CLI 入口
-│   └── clink-mcp/            # MCP Server 入口
+│   └── clink/                # CLI 工具入口
+│       └── main.go           # 主程序（使用生成的参数映射）
 ├── pkg/
-│   ├── client/               # HTTP 客户端
+│   ├── client/               # HTTP 客户端（含认证）
 │   ├── api/                  # 业务 API 层
-│   └── models/               # 数据模型
+│   ├── models/               # 数据模型
+│   ├── generated/            # 生成的代码（oapi-codegen）
+│   └── renderer/             # 统一结果渲染器
 ├── scripts/
-│   └── generate.go           # 代码生成器
+│   ├── generate.go           # 代码生成器（类型和客户端）
+│   └── cli_generator.go      # CLI 代码生成器（参数映射）
 ├── .github/workflows/
 │   └── ci.yml                # CI/CD 配置
 └── docs/
-    └── AGENT_MANUAL.md       # Agent 使用手册
+    └── DEVELOPMENT.md        # 开发文档
 ```
+
+## OpenAPI 参数映射
+
+CLI flags 自动生成自 OpenAPI 规范：
+
+| OpenAPI 参数 | CLI Flag | 转换规则 |
+|-------------|----------|----------|
+| `startTime` | `--start` | 驼峰 -> 短横线连接 |
+| `customerNumber` | `--phone` | 语义化映射 |
+| `cno` | `--agent` | 语义化映射 |
+| `ivrName` | `--ivr` | 语义化映射 |
+
+转换规则：
+1. 驼峰命名转换为短横线连接（如 `startTime` -> `start-time`，再简化为 `--start`）
+2. 常用参数使用语义化简称（如 `--phone` 代替 `--customer-number`）
 
 ## 开发
 
+### 生成代码
+
 ```bash
-# 生成代码（基于 OpenAPI）
+# 从 OpenAPI 生成类型和客户端代码
 make generate
 
-# 运行测试
+# 生成 CLI 参数映射代码（可选）
+go run scripts/cli_generator.go api/openapi.yaml
+```
+
+### 运行测试
+
+```bash
 go test -v ./...
 
-# 运行测试（带覆盖率）
+# 带覆盖率
 go test -v -race -cover ./...
+```
 
+### 构建
+
+```bash
 # 构建本地版本
 make build
 
 # 完整重建
 clean + generate + build
 make rebuild
+```
+
+## 添加新 API 支持
+
+1. **更新 OpenAPI 规范** (`api/openapi.yaml`)
+2. **重新生成代码**: `make generate`
+3. **在 `cmd/clink/main.go` 添加命令**: 使用 OpenAPI 参数自动生成 flags
+
+示例：
+
+```go
+var newCmd = &cobra.Command{
+    Use:   "new",
+    Short: "新功能",
+    RunE:  runNew,
+}
+
+func init() {
+    rootCmd.AddCommand(newCmd)
+    // Flag 从 OpenAPI 自动生成
+    newCmd.Flags().String("param-name", "", "参数说明 (OpenAPI: paramName)")
+}
 ```
 
 ## License
