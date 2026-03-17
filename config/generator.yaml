@@ -6,119 +6,116 @@ version: "1.0"
 
 # 全局配置
 global:
-  # 输出格式设置
   outputFormat: table
-  # 默认分页大小
   defaultPageSize: 10
-  # 时间格式
   timeFormat: "2006-01-02"
 
 # 需要生成的接口配置
-# 只有在这里定义的接口才会生成代码
 endpoints:
   # ==================== 通话记录 ====================
   listCdrIbs:
-    # 生成的命令路径: records inbound
     command: ["records", "inbound"]
     description: "查询呼入通话记录"
+    resultType: "list"
+    custom:
+      timeRange: true
+      pagination: true
     flags:
       - param: startTime
         flag: start
         shorthand: s
         type: string
         description: "开始时间 (YYYY-MM-DD)"
+        defaultFunc: "time.Now().AddDate(0,0,-7).Format(\"2006-01-02\")"
       - param: endTime
         flag: end
         shorthand: e
         type: string
         description: "结束时间 (YYYY-MM-DD)"
+        defaultFunc: "time.Now().Format(\"2006-01-02\")"
       - param: customerNumber
         flag: phone
         shorthand: p
+        type: string
         description: "客户号码筛选"
-        required: false
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号筛选"
-        required: false
       - param: offset
         flag: offset
+        type: int
         description: "偏移量"
         default: "0"
       - param: limit
         flag: limit
+        type: int
         description: "查询条数 (10-100)"
         default: "10"
 
   listCdrObs:
     command: ["records", "outbound"]
     description: "查询外呼通话记录"
+    resultType: "list"
+    custom:
+      timeRange: true
+      pagination: true
     flags:
       - param: startTime
         flag: start
         shorthand: s
         type: string
         description: "开始时间"
+        defaultFunc: "time.Now().AddDate(0,0,-7).Format(\"2006-01-02\")"
       - param: endTime
         flag: end
         shorthand: e
         type: string
         description: "结束时间"
+        defaultFunc: "time.Now().Format(\"2006-01-02\")"
       - param: customerNumber
         flag: phone
         shorthand: p
+        type: string
         description: "客户号码筛选"
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号筛选"
       - param: offset
         flag: offset
+        type: int
         default: "0"
       - param: limit
         flag: limit
+        type: int
         default: "10"
 
   # ==================== 座席状态 ====================
   listAgentStatus:
     command: ["agents"]
     description: "查询座席状态列表"
+    resultType: "custom"
+    customTemplate: "agentsRender"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号 (可选，不传则查询所有)"
-        required: false
 
   # ==================== 呼叫控制 ====================
   webcall:
     command: ["call"]
     description: "发起 WebCall 外呼"
     use: "call <phone>"
-    args:
-      - name: phone
-        description: "客户电话号码"
-        required: true
-    flags:
-      - param: customerNumber
-        flag: ""  # 从 positional arg 获取
-        source: arg
-      - param: clid
-        flag: clid
-        description: "外显号码"
-      - param: ivrName
-        flag: ivr
-        description: "IVR流程名称"
-        default: "工作时间"
-      - param: requestUniqueId
-        flag: request-id
-        description: "请求唯一ID (防重放)"
-
-  callout:
-    command: ["call", "agent"]
-    description: "座席发起外呼"
-    use: "call agent <phone> --agent <cno>"
+    resultType: "kv"
+    custom:
+      conditional: true
+      conditionField: "agent"
+      conditionAPI: "MakeCall"
     args:
       - name: phone
         description: "客户电话号码"
@@ -127,73 +124,96 @@ endpoints:
       - param: customerNumber
         flag: ""
         source: arg
+      - param: clid
+        flag: clid
+        type: string
+        description: "外显号码"
+      - param: ivrName
+        flag: ivr
+        type: string
+        description: "IVR流程名称"
+        default: "工作时间"
+      - param: requestUniqueId
+        flag: request-id
+        type: string
+        description: "请求唯一ID (防重放)"
       - param: cno
         flag: agent
         shorthand: a
-        description: "座席号"
-        required: true
-      - param: clid
-        flag: clid
-        description: "外显号码"
+        type: string
+        description: "座席号 (指定后使用座席外呼)"
 
   # ==================== 座席管理 ====================
   online:
     command: ["agent", "online"]
     description: "座席登录上线"
+    resultType: "simple"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号"
         required: true
       - param: qno
         flag: queue
         shorthand: q
+        type: string
         description: "登录队列号"
       - param: bindTel
         flag: tel
+        type: string
         description: "绑定电话号码"
       - param: bindType
         flag: bind-type
+        type: int
         description: "绑定类型 (1-分机, 2-直线, 3-软电话)"
         default: "1"
 
   offline:
     command: ["agent", "offline"]
     description: "座席登出下线"
+    resultType: "simple"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号"
         required: true
 
   pause:
     command: ["agent", "pause"]
     description: "座席置忙"
+    resultType: "simple"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号"
         required: true
       - param: pauseType
         flag: type
         shorthand: t
+        type: int
         description: "忙碌类型"
         default: "1"
       - param: description
         flag: reason
         shorthand: r
+        type: string
         description: "忙碌原因"
 
   unpause:
     command: ["agent", "ready"]
     description: "座席置闲"
+    resultType: "simple"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号"
         required: true
 
@@ -201,22 +221,28 @@ endpoints:
   getQueueStatus:
     command: ["queue", "status"]
     description: "查询队列状态"
+    resultType: "custom"
+    customTemplate: "queueRender"
     flags:
       - param: qnos
         flag: queue
         shorthand: q
-        description: "队列号 (多个用逗号分隔)"
+        type: string
+        description: "队列号"
 
   listQueues:
     command: ["queue", "list"]
     description: "查询队列列表"
+    resultType: "list"
     flags:
       - param: offset
         flag: offset
+        type: int
         description: "偏移量"
         default: "0"
       - param: limit
         flag: limit
+        type: int
         description: "查询条数"
         default: "10"
 
@@ -224,48 +250,58 @@ endpoints:
   unlink:
     command: ["call", "hangup"]
     description: "挂断当前通话"
+    resultType: "simple"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号"
         required: true
 
   hold:
     command: ["call", "hold"]
     description: "保持当前通话"
+    resultType: "simple"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号"
         required: true
 
   unhold:
     command: ["call", "unhold"]
     description: "恢复保持的通话"
+    resultType: "simple"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号"
         required: true
 
   transfer:
     command: ["call", "transfer"]
     description: "转接电话"
+    resultType: "simple"
     flags:
       - param: cno
         flag: agent
         shorthand: a
+        type: string
         description: "座席号"
         required: true
       - param: transferType
         flag: type
         shorthand: t
+        type: int
         description: "转接类型 (1-座席, 2-队列, 3-外线)"
         required: true
       - param: transferObject
         flag: target
+        type: string
         description: "转接目标"
         required: true

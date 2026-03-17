@@ -1,4 +1,3 @@
-// clink-generator - 基于配置的 CLI 代码生成器
 package main
 
 import (
@@ -10,8 +9,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
-
-// ==================== 配置结构 ====================
 
 type GeneratorConfig struct {
 	Version   string              `yaml:"version"`
@@ -26,11 +23,22 @@ type GlobalConfig struct {
 }
 
 type Endpoint struct {
-	Command     []string     `yaml:"command"`
-	Description string       `yaml:"description"`
-	Use         string       `yaml:"use,omitempty"`
-	Args        []ArgConfig  `yaml:"args,omitempty"`
-	Flags       []FlagConfig `yaml:"flags"`
+	Command        []string     `yaml:"command"`
+	Description    string       `yaml:"description"`
+	Use            string       `yaml:"use,omitempty"`
+	ResultType     string       `yaml:"resultType,omitempty"`
+	CustomTemplate string       `yaml:"customTemplate,omitempty"`
+	Custom         CustomConfig `yaml:"custom,omitempty"`
+	Args           []ArgConfig  `yaml:"args,omitempty"`
+	Flags          []FlagConfig `yaml:"flags"`
+}
+
+type CustomConfig struct {
+	TimeRange      bool   `yaml:"timeRange,omitempty"`
+	Pagination     bool   `yaml:"pagination,omitempty"`
+	Conditional    bool   `yaml:"conditional,omitempty"`
+	ConditionField string `yaml:"conditionField,omitempty"`
+	ConditionAPI   string `yaml:"conditionAPI,omitempty"`
 }
 
 type ArgConfig struct {
@@ -43,14 +51,14 @@ type FlagConfig struct {
 	Param       string `yaml:"param"`
 	Flag        string `yaml:"flag"`
 	Shorthand   string `yaml:"shorthand,omitempty"`
-	Type        string `yaml:"type,omitempty"`  // 覆盖自动推断的类型
+	Type        string `yaml:"type,omitempty"`
 	Description string `yaml:"description"`
 	Default     string `yaml:"default,omitempty"`
+	DefaultFunc string `yaml:"defaultFunc,omitempty"`
 	Required    bool   `yaml:"required,omitempty"`
 	Source      string `yaml:"source,omitempty"`
 }
 
-// OpenAPI 结构
 type OpenAPISpec struct {
 	Paths map[string]PathItem `yaml:"paths"`
 }
@@ -88,8 +96,6 @@ type Schema struct {
 	Properties map[string]Schema `yaml:"properties,omitempty"`
 }
 
-// ==================== 生成器 ====================
-
 type Generator struct {
 	Config *GeneratorConfig
 	Spec   *OpenAPISpec
@@ -119,7 +125,7 @@ func NewGenerator(configPath, specPath string) (*Generator, error) {
 
 func (g *Generator) Generate(outputDir string) error {
 	commands := make(map[string][]EndpointInfo)
-	
+
 	for opID, endpoint := range g.Config.Endpoints {
 		if len(endpoint.Command) == 0 {
 			continue
@@ -129,7 +135,7 @@ func (g *Generator) Generate(outputDir string) error {
 			fmt.Printf("⚠ Warning: operation %s not found\n", opID)
 			continue
 		}
-		
+
 		topCmd := endpoint.Command[0]
 		info := EndpointInfo{
 			OperationID: opID,
@@ -150,11 +156,7 @@ func (g *Generator) Generate(outputDir string) error {
 		}
 	}
 
-	if err := g.generateUtils(filepath.Join(outputDir, "utils_gen.go")); err != nil {
-		return fmt.Errorf("generate utils: %w", err)
-	}
-
-	fmt.Printf("\n✓ Generated %d files\n", len(commands)+2)
+	fmt.Printf("\n✓ Generated %d files\n", len(commands)+1)
 	return nil
 }
 
@@ -181,59 +183,69 @@ func (g *Generator) generateRoot(commands map[string][]EndpointInfo, filename st
 	for name := range commands {
 		cmdNames = append(cmdNames, name)
 	}
-	
+
 	data := struct {
 		Commands []string
 	}{
 		Commands: cmdNames,
 	}
-	
+
 	return generateFromTemplate(filename, rootTemplate, data)
 }
 
 func (g *Generator) generateCommandFile(name string, endpoints []EndpointInfo, filename string) error {
 	var subCommands []SubCommand
-	
+
 	for _, ep := range endpoints {
 		cmdName := g.getSubcommandName(ep.Endpoint.Command)
 		if cmdName == "" {
 			cmdName = ep.OperationID
 		}
-		
+
 		sc := SubCommand{
-			Name:        cmdName,
-			OperationID: ep.OperationID,
-			Description: ep.Endpoint.Description,
-			Use:         ep.Endpoint.Use,
-			ParentCmd:   name,
+			Name:           cmdName,
+			OperationID:    ep.OperationID,
+			Description:    ep.Endpoint.Description,
+			Use:            ep.Endpoint.Use,
+			ParentCmd:      name,
+			ResultType:     ep.Endpoint.ResultType,
+			CustomTemplate: ep.Endpoint.CustomTemplate,
+			Custom:         ep.Endpoint.Custom,
 		}
-		
+
 		for _, f := range ep.Endpoint.Flags {
-			if f.Flag == "" {
+			if f.Flag == "" && f.Source != "arg" {
 				continue
 			}
-			
+
 			flagType := g.getParamType(ep.Operation, f.Param)
 			if f.Type != "" {
-				flagType = f.Type  // 配置中指定的类型优先
+				flagType = f.Type
 			}
 			varName := g.toVarName(f.Flag)
-			cobraType := g.toCobraType(flagType)
-			
+			if varName == "" {
+				varName = g.toVarName(f.Param)
+			}
+
 			flag := FlagDef{
 				VarName:     varName,
+				ParamName:   f.Param,
 				Name:        f.Flag,
 				Shorthand:   f.Shorthand,
 				Type:        flagType,
-				CobraType:   cobraType,
+				CobraType:   g.toCobraType(flagType),
 				Default:     g.formatDefault(f.Default, flagType),
+				DefaultFunc: f.DefaultFunc,
 				Description: f.Description,
 				Required:    f.Required,
+				IsArg:       f.Source == "arg",
 			}
 			sc.Flags = append(sc.Flags, flag)
-			sc.FlagVars = append(sc.FlagVars, FlagVar{Name: varName, Type: flagType})
+			if flag.Name != "" {
+				sc.FlagVars = append(sc.FlagVars, FlagVar{Name: varName, Type: flagType})
+			}
 		}
-		
+
 		for i, arg := range ep.Endpoint.Args {
 			sc.Args = append(sc.Args, ArgDef{
 				Name:  arg.Name,
@@ -241,24 +253,18 @@ func (g *Generator) generateCommandFile(name string, endpoints []EndpointInfo, f
 				Index: i,
 			})
 		}
-		
+
 		sc.APICall = g.buildAPICall(ep, cmdName)
 		subCommands = append(subCommands, sc)
 	}
-	
+
 	data := CommandFileData{
 		Package:     "main",
 		CommandName: name,
 		SubCommands: subCommands,
 	}
-	
-	return generateFromTemplate(filename, commandTemplate, data)
-}
 
-func (g *Generator) generateUtils(filename string) error {
-	return generateFromTemplate(filename, utilsTemplate, map[string]string{
-		"Package": "main",
-	})
+	return generateFromTemplate(filename, commandTemplate, data)
 }
 
 func (g *Generator) getSubcommandName(cmd []string) string {
@@ -269,23 +275,24 @@ func (g *Generator) getSubcommandName(cmd []string) string {
 }
 
 func (g *Generator) toVarName(s string) string {
-	// 避免使用 Go 关键字
+	if s == "" {
+		return ""
+	}
 	keywords := map[string]bool{
 		"type": true, "map": true, "chan": true, "func": true,
 		"var": true, "const": true, "package": true, "import": true,
 	}
-	
+
 	parts := strings.Split(s, "-")
 	result := parts[0]
 	for i := 1; i < len(parts); i++ {
 		result += strings.Title(parts[i])
 	}
-	
-	// 如果是关键字，添加后缀
+
 	if keywords[result] {
 		result += "Val"
 	}
-	
+
 	return result
 }
 
@@ -302,7 +309,7 @@ func (g *Generator) getParamType(op *Operation, paramName string) string {
 			}
 		}
 	}
-	
+
 	if op.RequestBody != nil {
 		for _, media := range op.RequestBody.Content {
 			if schema, ok := media.Schema.Properties[paramName]; ok {
@@ -317,8 +324,19 @@ func (g *Generator) getParamType(op *Operation, paramName string) string {
 			}
 		}
 	}
-	
+
 	return "string"
+}
+
+func (g *Generator) toCobraType(t string) string {
+	switch t {
+	case "int":
+		return "Int"
+	case "bool":
+		return "Bool"
+	default:
+		return "String"
+	}
 }
 
 func (g *Generator) formatDefault(def, t string) string {
@@ -347,15 +365,13 @@ func (g *Generator) buildAPICall(ep EndpointInfo, cmdName string) string {
 	case "listAgentStatus":
 		return fmt.Sprintf("api.GetAgentStatus(ctx, %sFlags.agent)", cmdName)
 	case "webcall":
-		return fmt.Sprintf("api.Webcall(ctx, %sFlags.phone, %sFlags.clid, %sFlags.ivr, nil)", cmdName, cmdName, cmdName)
-	case "callout":
-		return fmt.Sprintf("api.MakeCall(ctx, %sFlags.phone, %sFlags.agent, %sFlags.clid)", cmdName, cmdName, cmdName)
+		return fmt.Sprintf("api.Webcall(ctx, phone, %sFlags.clid, %sFlags.ivr, nil)", cmdName, cmdName)
 	case "online":
 		return fmt.Sprintf("api.Online(ctx, %sFlags.agent, %sFlags.queue, %sFlags.tel, %sFlags.bindType)", cmdName, cmdName, cmdName, cmdName)
 	case "offline":
 		return fmt.Sprintf("api.Offline(ctx, %sFlags.agent)", cmdName)
 	case "pause":
-		return fmt.Sprintf("api.Pause(ctx, %sFlags.agent, %sFlags.pauseType, %sFlags.reason)", cmdName, cmdName, cmdName)
+		return fmt.Sprintf("api.Pause(ctx, %sFlags.agent, %sFlags.typeVal, %sFlags.reason)", cmdName, cmdName, cmdName)
 	case "unpause":
 		return fmt.Sprintf("api.Unpause(ctx, %sFlags.agent)", cmdName)
 	case "unlink":
@@ -365,24 +381,13 @@ func (g *Generator) buildAPICall(ep EndpointInfo, cmdName string) string {
 	case "unhold":
 		return fmt.Sprintf("api.Unhold(ctx, %sFlags.agent)", cmdName)
 	case "transfer":
-		return fmt.Sprintf("api.Transfer(ctx, %sFlags.agent, %sFlags.transferType, %sFlags.target)", cmdName, cmdName, cmdName)
+		return fmt.Sprintf("api.Transfer(ctx, %sFlags.agent, %sFlags.typeVal, %sFlags.target)", cmdName, cmdName, cmdName)
 	case "getQueueStatus":
 		return fmt.Sprintf("api.GetQueueStatus(ctx, %sFlags.queue)", cmdName)
 	case "listQueues":
 		return fmt.Sprintf("api.ListQueues(ctx, %sFlags.offset, %sFlags.limit)", cmdName, cmdName)
 	default:
 		return fmt.Sprintf("api.%s(ctx)", g.toPascalCase(ep.OperationID))
-	}
-}
-
-func (g *Generator) toCobraType(t string) string {
-	switch t {
-	case "int":
-		return "Int"
-	case "bool":
-		return "Bool"
-	default:
-		return "String"
 	}
 }
 
@@ -394,8 +399,6 @@ func (g *Generator) toPascalCase(s string) string {
 	return strings.Join(parts, "")
 }
 
-// ==================== 模板数据 ====================
-
 type CommandFileData struct {
 	Package     string
 	CommandName string
@@ -403,26 +406,32 @@ type CommandFileData struct {
 }
 
 type SubCommand struct {
-	Name        string
-	OperationID string
-	Description string
-	Use         string
-	ParentCmd   string
-	Flags       []FlagDef
-	FlagVars    []FlagVar
-	Args        []ArgDef
-	APICall     string
+	Name           string
+	OperationID    string
+	Description    string
+	Use            string
+	ParentCmd      string
+	ResultType     string
+	CustomTemplate string
+	Custom         CustomConfig
+	Flags          []FlagDef
+	FlagVars       []FlagVar
+	Args           []ArgDef
+	APICall        string
 }
 
 type FlagDef struct {
 	VarName     string
+	ParamName   string
 	Name        string
 	Shorthand   string
 	Type        string
 	CobraType   string
 	Default     string
+	DefaultFunc string
 	Description string
 	Required    bool
+	IsArg       bool
 }
 
 type FlagVar struct {
@@ -436,10 +445,7 @@ type ArgDef struct {
 	Index int
 }
 
-// ==================== 模板 ====================
-
 const rootTemplate = `// Code generated by clink-generator; DO NOT EDIT.
-
 package main
 
 import "github.com/spf13/cobra"
@@ -460,11 +466,16 @@ package main
 
 import (
 	"context"
-	"github.com/raymondtc/clink-cli/pkg/response"
+	"fmt"
+	"time"
+
+	"github.com/raymondtc/clink-cli/pkg/generated"
+	"github.com/raymondtc/clink-cli/pkg/renderer"
 	"github.com/spf13/cobra"
 )
 {{range .SubCommands}}
 {{$cmdName := .Name}}
+
 var {{.Name}}Flags struct {
 {{range .FlagVars}}	{{.Name}} {{.Type}}
 {{end}}}
@@ -478,32 +489,126 @@ var {{.Name}}Cmd = &cobra.Command{
 
 func init() {
 	{{.ParentCmd}}Cmd.AddCommand({{.Name}}Cmd)
-{{range .Flags}}{{if .Shorthand}}	{{$cmdName}}Cmd.Flags().{{.CobraType}}VarP(&{{$cmdName}}Flags.{{.VarName}}, "{{.Name}}", "{{.Shorthand}}", {{.Default}}, "{{.Description}}"){{else}}	{{$cmdName}}Cmd.Flags().{{.CobraType}}Var(&{{$cmdName}}Flags.{{.VarName}}, "{{.Name}}", {{.Default}}, "{{.Description}}"){{end}}{{if .Required}}
-	{{$cmdName}}Cmd.MarkFlagRequired("{{.Name}}"){{end}}
+{{range .Flags}}{{if not .IsArg}}{{if .DefaultFunc}}
+	{{$cmdName}}Cmd.Flags().{{.CobraType}}VarP(&{{$cmdName}}Flags.{{.VarName}}, "{{.Name}}", "{{.Shorthand}}", {{.DefaultFunc}}, "{{.Description}}"){{else if .Shorthand}}
+	{{$cmdName}}Cmd.Flags().{{.CobraType}}VarP(&{{$cmdName}}Flags.{{.VarName}}, "{{.Name}}", "{{.Shorthand}}", {{.Default}}, "{{.Description}}"){{else}}
+	{{$cmdName}}Cmd.Flags().{{.CobraType}}Var(&{{$cmdName}}Flags.{{.VarName}}, "{{.Name}}", {{.Default}}, "{{.Description}}"){{end}}{{if .Required}}
+	{{$cmdName}}Cmd.MarkFlagRequired("{{.Name}}"){{end}}{{end}}
 {{end}}}
 
 func run{{.Name}}(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	_ = time.Now()
+	_ = context.Background
+	_ = generated.CallResult{}
+	_ = renderer.Table{}
 	api, err := createAPI()
 	if err != nil {
 		return err
 	}
 	ctx := context.Background()
-{{range .Args}}	{{.Name}} := args[{{.Index}}]
-{{end}}	_, err = {{.APICall}}
-	return response.Wrap("{{.Name}}", err)
-}
+{{if .Args}}	phone := args[0]
+{{end}}{{if eq .ResultType "list"}}{{if eq .OperationID "listQueues"}}
+	queues, err := {{.APICall}}
+	if err != nil {
+		return err
+	}
+	return renderOutput(queues)
+{{else}}
+	records, total, err := {{.APICall}}
+	if err != nil {
+		return err
+	}
+	return renderList(records, total)
+{{end}}{{else if eq .ResultType "simple"}}
+	err = {{.APICall}}
+	if err != nil {
+		return err
+	}
+	renderer.PrintSuccess("{{.Description}}成功")
+	return nil
+{{else if eq .ResultType "kv"}}{{if .Custom.Conditional}}
+	var result *generated.CallResult
+	if {{$cmdName}}Flags.{{.Custom.ConditionField}} != "" {
+		renderer.PrintSuccess(fmt.Sprintf("使用座席 %s 发起外呼...", {{$cmdName}}Flags.{{.Custom.ConditionField}}))
+		result, err = api.{{.Custom.ConditionAPI}}(ctx, phone, {{$cmdName}}Flags.{{.Custom.ConditionField}}, {{$cmdName}}Flags.clid)
+	} else {
+		renderer.PrintSuccess("使用 WebCall 发起呼叫（无需座席）...")
+		result, err = api.Webcall(ctx, phone, {{$cmdName}}Flags.clid, {{$cmdName}}Flags.ivr, nil)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Println()
+	renderer.PrintKV(map[string]string{
+		"通话ID": deref(result.CallId),
+		"状态":   deref(result.Status),
+		"号码":   phone,
+	})
+	return nil
+{{else}}
+	_, err = {{.APICall}}
+	if err != nil {
+		return err
+	}
+	return nil
+{{end}}{{else if eq .CustomTemplate "agentsRender"}}
+	agents, err := {{.APICall}}
+	if err != nil {
+		return err
+	}
+	if outputFormat == "table" {
+		fmt.Printf("座席列表 (%d 人):\n\n", len(agents))
+		table := &renderer.Table{
+			Headers: []string{"状态", "姓名", "座席号", "状态"},
+		}
+		for _, agent := range agents {
+			statusIcon := "⚪"
+			status := deref(agent.AgentStatus)
+			switch status {
+			case "空闲":
+				statusIcon = "🟢"
+			case "置忙":
+				statusIcon = "🔴"
+			case "离线":
+				statusIcon = "⚪"
+			}
+			table.Rows = append(table.Rows, renderer.Row{
+				Cells: []renderer.Cell{
+					{Value: statusIcon},
+					{Value: deref(agent.ClientName)},
+					{Value: deref(agent.Cno)},
+					{Value: status},
+				},
+			})
+		}
+		r := renderer.New(renderer.FormatTable)
+		return r.Render(table)
+	}
+	return renderOutput(agents)
+{{else if eq .CustomTemplate "queueRender"}}
+	queue, err := {{.APICall}}
+	if err != nil {
+		return err
+	}
+	qname := deref(queue.Qname)
+	queueID := deref(queue.Qno)
+	if outputFormat == "table" {
+		fmt.Printf("队列: %s (%s)\n\n", qname, queueID)
+		renderer.PrintKV(map[string]string{
+			"等待人数": derefInt(queue.WaitCount),
+			"平均等待": fmt.Sprintf("%s 秒", derefInt(queue.QueueUpWaitTime)),
+			"在线座席": derefInt(queue.OnlineAgentCount),
+			"忙碌座席": derefInt(queue.BusyAgentCount),
+		})
+		return nil
+	}
+	return renderOutput(queue)
+{{else}}
+	_, err = {{.APICall}}
+	return err
+{{end}}}
 {{end}}
-`
-
-const utilsTemplate = `// Code generated by clink-generator; DO NOT EDIT.
-package main
-
-import "github.com/raymondtc/clink-cli/pkg/renderer"
-
-func renderOutput(data interface{}) error {
-	r := renderer.New(renderer.Format(outputFormat))
-	return r.Render(data)
-}
 `
 
 func generateFromTemplate(filename, tmplStr string, data interface{}) error {

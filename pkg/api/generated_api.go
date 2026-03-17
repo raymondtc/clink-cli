@@ -400,3 +400,23 @@ func (a *GeneratedAPI) ListQueues(ctx context.Context, offset, limit int) ([]gen
 
 	return *resp.JSON200.Queues, nil
 }
+
+// Transfer transfers a call
+func (a *GeneratedAPI) Transfer(ctx context.Context, agentID string, transferType int, transferObject string) error {
+	body := generated.TransferJSONRequestBody{
+		Cno:            agentID,
+		TransferType:   transferType,
+		TransferObject: transferObject,
+	}
+
+	resp, err := a.client.TransferWithResponse(ctx, body)
+	if err != nil {
+		return fmt.Errorf("transfer: %w", err)
+	}
+
+	if resp.JSON200 == nil {
+		return fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+	}
+
+	return nil
+}
