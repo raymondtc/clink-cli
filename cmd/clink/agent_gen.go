@@ -11,6 +11,86 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var pauseFlags struct {
+	agent   string
+	typeVal int
+	reason  string
+}
+
+var pauseCmd = &cobra.Command{
+	Use:   "pause",
+	Short: "座席置忙",
+	RunE:  runpause,
+}
+
+func init() {
+	agentCmd.AddCommand(pauseCmd)
+
+	pauseCmd.Flags().StringVarP(&pauseFlags.agent, "agent", "a", "", "座席号")
+	pauseCmd.MarkFlagRequired("agent")
+
+	pauseCmd.Flags().IntVarP(&pauseFlags.typeVal, "type", "t", 1, "忙碌类型")
+
+	pauseCmd.Flags().StringVarP(&pauseFlags.reason, "reason", "r", "", "忙碌原因")
+}
+
+func runpause(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	_ = time.Now()
+	_ = context.Background
+	_ = generated.CallResult{}
+	_ = renderer.Table{}
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+
+	err = api.Pause(ctx, pauseFlags.agent, pauseFlags.typeVal, pauseFlags.reason)
+	if err != nil {
+		return err
+	}
+	renderer.PrintSuccess("座席置忙成功")
+	return nil
+}
+
+var readyFlags struct {
+	agent string
+}
+
+var readyCmd = &cobra.Command{
+	Use:   "ready",
+	Short: "座席置闲",
+	RunE:  runready,
+}
+
+func init() {
+	agentCmd.AddCommand(readyCmd)
+
+	readyCmd.Flags().StringVarP(&readyFlags.agent, "agent", "a", "", "座席号")
+	readyCmd.MarkFlagRequired("agent")
+}
+
+func runready(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	_ = time.Now()
+	_ = context.Background
+	_ = generated.CallResult{}
+	_ = renderer.Table{}
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+
+	err = api.Unpause(ctx, readyFlags.agent)
+	if err != nil {
+		return err
+	}
+	renderer.PrintSuccess("座席置闲成功")
+	return nil
+}
+
 var onlineFlags struct {
 	agent    string
 	queue    string
@@ -91,85 +171,5 @@ func runoffline(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	renderer.PrintSuccess("座席登出下线成功")
-	return nil
-}
-
-var pauseFlags struct {
-	agent   string
-	typeVal int
-	reason  string
-}
-
-var pauseCmd = &cobra.Command{
-	Use:   "pause",
-	Short: "座席置忙",
-	RunE:  runpause,
-}
-
-func init() {
-	agentCmd.AddCommand(pauseCmd)
-
-	pauseCmd.Flags().StringVarP(&pauseFlags.agent, "agent", "a", "", "座席号")
-	pauseCmd.MarkFlagRequired("agent")
-
-	pauseCmd.Flags().IntVarP(&pauseFlags.typeVal, "type", "t", 1, "忙碌类型")
-
-	pauseCmd.Flags().StringVarP(&pauseFlags.reason, "reason", "r", "", "忙碌原因")
-}
-
-func runpause(cmd *cobra.Command, args []string) error {
-	_ = fmt.Sprintf("")
-	_ = time.Now()
-	_ = context.Background
-	_ = generated.CallResult{}
-	_ = renderer.Table{}
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	ctx := context.Background()
-
-	err = api.Pause(ctx, pauseFlags.agent, pauseFlags.typeVal, pauseFlags.reason)
-	if err != nil {
-		return err
-	}
-	renderer.PrintSuccess("座席置忙成功")
-	return nil
-}
-
-var readyFlags struct {
-	agent string
-}
-
-var readyCmd = &cobra.Command{
-	Use:   "ready",
-	Short: "座席置闲",
-	RunE:  runready,
-}
-
-func init() {
-	agentCmd.AddCommand(readyCmd)
-
-	readyCmd.Flags().StringVarP(&readyFlags.agent, "agent", "a", "", "座席号")
-	readyCmd.MarkFlagRequired("agent")
-}
-
-func runready(cmd *cobra.Command, args []string) error {
-	_ = fmt.Sprintf("")
-	_ = time.Now()
-	_ = context.Background
-	_ = generated.CallResult{}
-	_ = renderer.Table{}
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	ctx := context.Background()
-
-	err = api.Unpause(ctx, readyFlags.agent)
-	if err != nil {
-		return err
-	}
-	renderer.PrintSuccess("座席置闲成功")
 	return nil
 }

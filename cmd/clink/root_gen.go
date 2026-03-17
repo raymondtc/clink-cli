@@ -4,30 +4,26 @@ package main
 import "github.com/spf13/cobra"
 
 func init() {
-	rootCmd.AddCommand(recordsCmd)
 	rootCmd.AddCommand(agentCmd)
-	rootCmd.AddCommand(callCmd)
-	rootCmd.AddCommand(agentsCmd)
 	rootCmd.AddCommand(queueCmd)
+	rootCmd.AddCommand(callCmd)
+	rootCmd.AddCommand(recordsCmd)
+	rootCmd.AddCommand(agentsCmd)
 }
 
-var recordsCmd = &cobra.Command{
-	Use:   "records",
-	Short: "records related commands",
-}
 var agentCmd = &cobra.Command{
 	Use:   "agent",
 	Short: "agent related commands",
+}
+var queueCmd = &cobra.Command{
+	Use:   "queue",
+	Short: "queue related commands",
 }
 var callCmd = &cobra.Command{
 	Use:   "call",
 	Short: "call related commands",
 }
-var agentsCmd = &cobra.Command{
-	Use:   "agents",
-	Short: "agents related commands",
-}
-var queueCmd = &cobra.Command{
-	Use:   "queue",
-	Short: "queue related commands",
+var recordsCmd = &cobra.Command{
+	Use:   "records",
+	Short: "records related commands",
 }

@@ -11,56 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var outboundFlags struct {
-	start  string
-	end    string
-	phone  string
-	agent  string
-	offset int
-	limit  int
-}
-
-var outboundCmd = &cobra.Command{
-	Use:   "outbound",
-	Short: "查询外呼通话记录",
-	RunE:  runoutbound,
-}
-
-func init() {
-	recordsCmd.AddCommand(outboundCmd)
-
-	outboundCmd.Flags().StringVarP(&outboundFlags.start, "start", "s", time.Now().AddDate(0, 0, -7).Format("2006-01-02"), "开始时间")
-
-	outboundCmd.Flags().StringVarP(&outboundFlags.end, "end", "e", time.Now().Format("2006-01-02"), "结束时间")
-
-	outboundCmd.Flags().StringVarP(&outboundFlags.phone, "phone", "p", "", "客户号码筛选")
-
-	outboundCmd.Flags().StringVarP(&outboundFlags.agent, "agent", "a", "", "座席号筛选")
-
-	outboundCmd.Flags().IntVar(&outboundFlags.offset, "offset", 0, "")
-
-	outboundCmd.Flags().IntVar(&outboundFlags.limit, "limit", 10, "")
-}
-
-func runoutbound(cmd *cobra.Command, args []string) error {
-	_ = fmt.Sprintf("")
-	_ = time.Now()
-	_ = context.Background
-	_ = generated.CallResult{}
-	_ = renderer.Table{}
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	ctx := context.Background()
-
-	records, total, err := api.GetOutboundRecords(ctx, outboundFlags.start, outboundFlags.end, outboundFlags.phone, outboundFlags.agent, outboundFlags.offset/outboundFlags.limit+1, outboundFlags.limit)
-	if err != nil {
-		return err
-	}
-	return renderList(records, total)
-}
-
 var inboundFlags struct {
 	start  string
 	end    string
@@ -105,6 +55,56 @@ func runinbound(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	records, total, err := api.GetInboundRecords(ctx, inboundFlags.start, inboundFlags.end, inboundFlags.phone, inboundFlags.agent, inboundFlags.offset/inboundFlags.limit+1, inboundFlags.limit)
+	if err != nil {
+		return err
+	}
+	return renderList(records, total)
+}
+
+var outboundFlags struct {
+	start  string
+	end    string
+	phone  string
+	agent  string
+	offset int
+	limit  int
+}
+
+var outboundCmd = &cobra.Command{
+	Use:   "outbound",
+	Short: "查询外呼通话记录",
+	RunE:  runoutbound,
+}
+
+func init() {
+	recordsCmd.AddCommand(outboundCmd)
+
+	outboundCmd.Flags().StringVarP(&outboundFlags.start, "start", "s", time.Now().AddDate(0, 0, -7).Format("2006-01-02"), "开始时间")
+
+	outboundCmd.Flags().StringVarP(&outboundFlags.end, "end", "e", time.Now().Format("2006-01-02"), "结束时间")
+
+	outboundCmd.Flags().StringVarP(&outboundFlags.phone, "phone", "p", "", "客户号码筛选")
+
+	outboundCmd.Flags().StringVarP(&outboundFlags.agent, "agent", "a", "", "座席号筛选")
+
+	outboundCmd.Flags().IntVar(&outboundFlags.offset, "offset", 0, "")
+
+	outboundCmd.Flags().IntVar(&outboundFlags.limit, "limit", 10, "")
+}
+
+func runoutbound(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	_ = time.Now()
+	_ = context.Background
+	_ = generated.CallResult{}
+	_ = renderer.Table{}
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+
+	records, total, err := api.GetOutboundRecords(ctx, outboundFlags.start, outboundFlags.end, outboundFlags.phone, outboundFlags.agent, outboundFlags.offset/outboundFlags.limit+1, outboundFlags.limit)
 	if err != nil {
 		return err
 	}

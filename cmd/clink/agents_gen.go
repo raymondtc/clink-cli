@@ -11,23 +11,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var listAgentStatusFlags struct {
+var agentsFlags struct {
 	agent string
 }
 
-var listAgentStatusCmd = &cobra.Command{
-	Use:   "listAgentStatus",
+var agentsCmd = &cobra.Command{
+	Use:   "agents",
 	Short: "查询座席状态列表",
-	RunE:  runlistAgentStatus,
+	RunE:  runagents,
 }
 
 func init() {
-	agentsCmd.AddCommand(listAgentStatusCmd)
 
-	listAgentStatusCmd.Flags().StringVarP(&listAgentStatusFlags.agent, "agent", "a", "", "座席号 (可选，不传则查询所有)")
+	agentsCmd.Flags().StringVarP(&agentsFlags.agent, "agent", "a", "", "座席号 (可选，不传则查询所有)")
 }
 
-func runlistAgentStatus(cmd *cobra.Command, args []string) error {
+func runagents(cmd *cobra.Command, args []string) error {
 	_ = fmt.Sprintf("")
 	_ = time.Now()
 	_ = context.Background
@@ -39,7 +38,7 @@ func runlistAgentStatus(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	agents, err := api.GetAgentStatus(ctx, listAgentStatusFlags.agent)
+	agents, err := api.GetAgentStatus(ctx, agentsFlags.agent)
 	if err != nil {
 		return err
 	}

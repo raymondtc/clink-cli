@@ -232,25 +232,31 @@ make rebuild
 
 ## 添加新 API 支持
 
-1. **更新 OpenAPI 规范** (`api/openapi.yaml`)
-2. **重新生成代码**: `make generate`
-3. **在 `cmd/clink/main.go` 添加命令**: 使用 OpenAPI 参数自动生成 flags
+本项目使用代码生成系统自动生成 CLI 命令。查看完整文档：
 
-示例：
+📖 **[代码生成系统文档](docs/GENERATOR.md)**
 
-```go
-var newCmd = &cobra.Command{
-    Use:   "new",
-    Short: "新功能",
-    RunE:  runNew,
-}
+### 快速添加新接口
 
-func init() {
-    rootCmd.AddCommand(newCmd)
-    // Flag 从 OpenAPI 自动生成
-    newCmd.Flags().String("param-name", "", "参数说明 (OpenAPI: paramName)")
-}
+```bash
+# 1. 编辑配置
+vim config/generator.yaml
+
+# 2. 生成代码
+make generate
+
+# 3. 构建测试
+make build
+./bin/clink your-new-command --help
 ```
+
+### 传统方式（手动添加）
+
+如需手动添加（不推荐）：
+
+1. 更新 OpenAPI 规范 (`api/openapi.yaml`)
+2. 运行 `make generate` 生成类型
+3. 在 `cmd/clink/main.go` 添加命令
 
 ## License
 

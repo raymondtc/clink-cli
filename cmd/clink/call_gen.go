@@ -11,6 +11,65 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var webcallFlags struct {
+	clid      string
+	ivr       string
+	requestId string
+	agent     string
+}
+
+var webcallCmd = &cobra.Command{
+	Use:   "call webcall <phone>",
+	Short: "发起 WebCall 外呼",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runwebcall,
+}
+
+func init() {
+	callCmd.AddCommand(webcallCmd)
+
+	webcallCmd.Flags().StringVar(&webcallFlags.clid, "clid", "", "外显号码")
+
+	webcallCmd.Flags().StringVar(&webcallFlags.ivr, "ivr", "工作时间", "IVR流程名称")
+
+	webcallCmd.Flags().StringVar(&webcallFlags.requestId, "request-id", "", "请求唯一ID (防重放)")
+
+	webcallCmd.Flags().StringVarP(&webcallFlags.agent, "agent", "a", "", "座席号 (指定后使用座席外呼)")
+}
+
+func runwebcall(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	_ = time.Now()
+	_ = context.Background
+	_ = generated.CallResult{}
+	_ = renderer.Table{}
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	phone := args[0]
+
+	var result *generated.CallResult
+	if webcallFlags.agent != "" {
+		renderer.PrintSuccess(fmt.Sprintf("使用座席 %s 发起外呼...", webcallFlags.agent))
+		result, err = api.MakeCall(ctx, phone, webcallFlags.agent, webcallFlags.clid)
+	} else {
+		renderer.PrintSuccess("使用 WebCall 发起呼叫（无需座席）...")
+		result, err = api.Webcall(ctx, phone, webcallFlags.clid, webcallFlags.ivr, nil)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Println()
+	renderer.PrintKV(map[string]string{
+		"通话ID": deref(result.CallId),
+		"状态":   deref(result.Status),
+		"号码":   phone,
+	})
+	return nil
+}
+
 var hangupFlags struct {
 	agent string
 }
@@ -45,6 +104,43 @@ func runhangup(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	renderer.PrintSuccess("挂断当前通话成功")
+	return nil
+}
+
+var holdFlags struct {
+	agent string
+}
+
+var holdCmd = &cobra.Command{
+	Use:   "hold",
+	Short: "保持当前通话",
+	RunE:  runhold,
+}
+
+func init() {
+	callCmd.AddCommand(holdCmd)
+
+	holdCmd.Flags().StringVarP(&holdFlags.agent, "agent", "a", "", "座席号")
+	holdCmd.MarkFlagRequired("agent")
+}
+
+func runhold(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	_ = time.Now()
+	_ = context.Background
+	_ = generated.CallResult{}
+	_ = renderer.Table{}
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+
+	err = api.Hold(ctx, holdFlags.agent)
+	if err != nil {
+		return err
+	}
+	renderer.PrintSuccess("保持当前通话成功")
 	return nil
 }
 
@@ -127,101 +223,5 @@ func runtransfer(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	renderer.PrintSuccess("转接电话成功")
-	return nil
-}
-
-var webcallFlags struct {
-	clid      string
-	ivr       string
-	requestId string
-	agent     string
-}
-
-var webcallCmd = &cobra.Command{
-	Use:   "call <phone>",
-	Short: "发起 WebCall 外呼",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runwebcall,
-}
-
-func init() {
-	callCmd.AddCommand(webcallCmd)
-
-	webcallCmd.Flags().StringVar(&webcallFlags.clid, "clid", "", "外显号码")
-
-	webcallCmd.Flags().StringVar(&webcallFlags.ivr, "ivr", "工作时间", "IVR流程名称")
-
-	webcallCmd.Flags().StringVar(&webcallFlags.requestId, "request-id", "", "请求唯一ID (防重放)")
-
-	webcallCmd.Flags().StringVarP(&webcallFlags.agent, "agent", "a", "", "座席号 (指定后使用座席外呼)")
-}
-
-func runwebcall(cmd *cobra.Command, args []string) error {
-	_ = fmt.Sprintf("")
-	_ = time.Now()
-	_ = context.Background
-	_ = generated.CallResult{}
-	_ = renderer.Table{}
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	ctx := context.Background()
-	phone := args[0]
-
-	var result *generated.CallResult
-	if webcallFlags.agent != "" {
-		renderer.PrintSuccess(fmt.Sprintf("使用座席 %s 发起外呼...", webcallFlags.agent))
-		result, err = api.MakeCall(ctx, phone, webcallFlags.agent, webcallFlags.clid)
-	} else {
-		renderer.PrintSuccess("使用 WebCall 发起呼叫（无需座席）...")
-		result, err = api.Webcall(ctx, phone, webcallFlags.clid, webcallFlags.ivr, nil)
-	}
-	if err != nil {
-		return err
-	}
-	fmt.Println()
-	renderer.PrintKV(map[string]string{
-		"通话ID": deref(result.CallId),
-		"状态":   deref(result.Status),
-		"号码":   phone,
-	})
-	return nil
-}
-
-var holdFlags struct {
-	agent string
-}
-
-var holdCmd = &cobra.Command{
-	Use:   "hold",
-	Short: "保持当前通话",
-	RunE:  runhold,
-}
-
-func init() {
-	callCmd.AddCommand(holdCmd)
-
-	holdCmd.Flags().StringVarP(&holdFlags.agent, "agent", "a", "", "座席号")
-	holdCmd.MarkFlagRequired("agent")
-}
-
-func runhold(cmd *cobra.Command, args []string) error {
-	_ = fmt.Sprintf("")
-	_ = time.Now()
-	_ = context.Background
-	_ = generated.CallResult{}
-	_ = renderer.Table{}
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	ctx := context.Background()
-
-	err = api.Hold(ctx, holdFlags.agent)
-	if err != nil {
-		return err
-	}
-	renderer.PrintSuccess("保持当前通话成功")
 	return nil
 }

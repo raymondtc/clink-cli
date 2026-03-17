@@ -125,6 +125,7 @@ func NewGenerator(configPath, specPath string) (*Generator, error) {
 
 func (g *Generator) Generate(outputDir string) error {
 	commands := make(map[string][]EndpointInfo)
+	singleCommands := make(map[string]EndpointInfo) // 单元素命令直接映射
 
 	for opID, endpoint := range g.Config.Endpoints {
 		if len(endpoint.Command) == 0 {
@@ -136,19 +137,28 @@ func (g *Generator) Generate(outputDir string) error {
 			continue
 		}
 
-		topCmd := endpoint.Command[0]
 		info := EndpointInfo{
 			OperationID: opID,
 			Endpoint:    endpoint,
 			Operation:   op,
 		}
-		commands[topCmd] = append(commands[topCmd], info)
+
+		if len(endpoint.Command) == 1 {
+			// 单元素命令，直接添加到 root
+			singleCommands[endpoint.Command[0]] = info
+		} else {
+			// 多级命令，按顶级命令分组
+			topCmd := endpoint.Command[0]
+			commands[topCmd] = append(commands[topCmd], info)
+		}
 	}
 
-	if err := g.generateRoot(commands, filepath.Join(outputDir, "root_gen.go")); err != nil {
+	// 生成根命令文件（包含单元素命令的注册）
+	if err := g.generateRoot(commands, singleCommands, filepath.Join(outputDir, "root_gen.go")); err != nil {
 		return fmt.Errorf("generate root: %w", err)
 	}
 
+	// 生成多级命令文件
 	for name, endpoints := range commands {
 		filename := filepath.Join(outputDir, name+"_gen.go")
 		if err := g.generateCommandFile(name, endpoints, filename); err != nil {
@@ -156,7 +166,15 @@ func (g *Generator) Generate(outputDir string) error {
 		}
 	}
 
-	fmt.Printf("\n✓ Generated %d files\n", len(commands)+1)
+	// 生成单元素命令文件
+	for name, endpoint := range singleCommands {
+		filename := filepath.Join(outputDir, name+"_gen.go")
+		if err := g.generateSingleCommandFile(name, endpoint, filename); err != nil {
+			return fmt.Errorf("generate %s: %w", name, err)
+		}
+	}
+
+	fmt.Printf("\n✓ Generated %d files\n", len(commands)+len(singleCommands)+1)
 	return nil
 }
 
@@ -178,16 +196,22 @@ type EndpointInfo struct {
 	Operation   *Operation
 }
 
-func (g *Generator) generateRoot(commands map[string][]EndpointInfo, filename string) error {
-	var cmdNames []string
+func (g *Generator) generateRoot(commands map[string][]EndpointInfo, singleCommands map[string]EndpointInfo, filename string) error {
+	var multiCmdNames []string
 	for name := range commands {
-		cmdNames = append(cmdNames, name)
+		multiCmdNames = append(multiCmdNames, name)
+	}
+	var singleCmdNames []string
+	for name := range singleCommands {
+		singleCmdNames = append(singleCmdNames, name)
 	}
 
 	data := struct {
-		Commands []string
+		Commands       []string
+		SingleCommands []string
 	}{
-		Commands: cmdNames,
+		Commands:       multiCmdNames,
+		SingleCommands: singleCmdNames,
 	}
 
 	return generateFromTemplate(filename, rootTemplate, data)
@@ -265,6 +289,72 @@ func (g *Generator) generateCommandFile(name string, endpoints []EndpointInfo, f
 	}
 
 	return generateFromTemplate(filename, commandTemplate, data)
+}
+
+func (g *Generator) generateSingleCommandFile(name string, ep EndpointInfo, filename string) error {
+	cmdName := name
+	
+	sc := SubCommand{
+		Name:           cmdName,
+		OperationID:    ep.OperationID,
+		Description:    ep.Endpoint.Description,
+		Use:            ep.Endpoint.Use,
+		ParentCmd:      "root",
+		ResultType:     ep.Endpoint.ResultType,
+		CustomTemplate: ep.Endpoint.CustomTemplate,
+		Custom:         ep.Endpoint.Custom,
+	}
+
+	for _, f := range ep.Endpoint.Flags {
+		if f.Flag == "" && f.Source != "arg" {
+			continue
+		}
+
+		flagType := g.getParamType(ep.Operation, f.Param)
+		if f.Type != "" {
+			flagType = f.Type
+		}
+		varName := g.toVarName(f.Flag)
+		if varName == "" {
+			varName = g.toVarName(f.Param)
+		}
+
+		flag := FlagDef{
+			VarName:     varName,
+			ParamName:   f.Param,
+			Name:        f.Flag,
+			Shorthand:   f.Shorthand,
+			Type:        flagType,
+			CobraType:   g.toCobraType(flagType),
+			Default:     g.formatDefault(f.Default, flagType),
+			DefaultFunc: f.DefaultFunc,
+			Description: f.Description,
+			Required:    f.Required,
+			IsArg:       f.Source == "arg",
+		}
+		sc.Flags = append(sc.Flags, flag)
+		if flag.Name != "" {
+			sc.FlagVars = append(sc.FlagVars, FlagVar{Name: varName, Type: flagType})
+		}
+	}
+
+	for i, arg := range ep.Endpoint.Args {
+		sc.Args = append(sc.Args, ArgDef{
+			Name:  arg.Name,
+			Type:  "string",
+			Index: i,
+		})
+	}
+
+	sc.APICall = g.buildAPICall(ep, cmdName)
+
+	data := SingleCommandFileData{
+		Package: "main",
+		Name:    name,
+		Command: sc,
+	}
+
+	return generateFromTemplate(filename, singleCommandTemplate, data)
 }
 
 func (g *Generator) getSubcommandName(cmd []string) string {
@@ -405,6 +495,12 @@ type CommandFileData struct {
 	SubCommands []SubCommand
 }
 
+type SingleCommandFileData struct {
+	Package string
+	Name    string
+	Command SubCommand
+}
+
 type SubCommand struct {
 	Name           string
 	OperationID    string
@@ -452,6 +548,7 @@ import "github.com/spf13/cobra"
 
 func init() {
 {{range .Commands}}	rootCmd.AddCommand({{.}}Cmd)
+{{end}}{{range .SingleCommands}}	rootCmd.AddCommand({{.}}Cmd)
 {{end}}}
 
 {{range .Commands}}var {{.}}Cmd = &cobra.Command{
@@ -609,6 +706,154 @@ func run{{.Name}}(cmd *cobra.Command, args []string) error {
 	return err
 {{end}}}
 {{end}}
+`
+
+const singleCommandTemplate = `// Code generated by clink-generator; DO NOT EDIT.
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/raymondtc/clink-cli/pkg/generated"
+	"github.com/raymondtc/clink-cli/pkg/renderer"
+	"github.com/spf13/cobra"
+)
+
+{{$cmdName := .Name}}
+
+var {{.Name}}Flags struct {
+{{range .Command.FlagVars}}	{{.Name}} {{.Type}}
+{{end}}}
+
+var {{.Name}}Cmd = &cobra.Command{
+	Use:   "{{if .Command.Use}}{{.Command.Use}}{{else}}{{.Name}}{{end}}",
+	Short: "{{.Command.Description}}",
+{{if .Command.Args}}	Args:  cobra.ExactArgs({{len .Command.Args}}),
+{{end}}	RunE:  run{{.Name}},
+}
+
+func init() {
+{{range .Command.Flags}}{{if not .IsArg}}{{if .DefaultFunc}}
+	{{$cmdName}}Cmd.Flags().{{.CobraType}}VarP(&{{$cmdName}}Flags.{{.VarName}}, "{{.Name}}", "{{.Shorthand}}", {{.DefaultFunc}}, "{{.Description}}"){{else if .Shorthand}}
+	{{$cmdName}}Cmd.Flags().{{.CobraType}}VarP(&{{$cmdName}}Flags.{{.VarName}}, "{{.Name}}", "{{.Shorthand}}", {{.Default}}, "{{.Description}}"){{else}}
+	{{$cmdName}}Cmd.Flags().{{.CobraType}}Var(&{{$cmdName}}Flags.{{.VarName}}, "{{.Name}}", {{.Default}}, "{{.Description}}"){{end}}{{if .Required}}
+	{{$cmdName}}Cmd.MarkFlagRequired("{{.Name}}"){{end}}{{end}}
+{{end}}}
+
+func run{{.Name}}(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	_ = time.Now()
+	_ = context.Background
+	_ = generated.CallResult{}
+	_ = renderer.Table{}
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+{{if .Command.Args}}	phone := args[0]
+{{end}}{{if eq .Command.ResultType "list"}}{{if eq .Command.OperationID "listQueues"}}
+	queues, err := {{.Command.APICall}}
+	if err != nil {
+		return err
+	}
+	return renderOutput(queues)
+{{else}}
+	records, total, err := {{.Command.APICall}}
+	if err != nil {
+		return err
+	}
+	return renderList(records, total)
+{{end}}{{else if eq .Command.ResultType "simple"}}
+	err = {{.Command.APICall}}
+	if err != nil {
+		return err
+	}
+	renderer.PrintSuccess("{{.Command.Description}}成功")
+	return nil
+{{else if eq .Command.ResultType "kv"}}{{if .Command.Custom.Conditional}}
+	var result *generated.CallResult
+	if {{$cmdName}}Flags.{{.Command.Custom.ConditionField}} != "" {
+		renderer.PrintSuccess(fmt.Sprintf("使用座席 %s 发起外呼...", {{$cmdName}}Flags.{{.Command.Custom.ConditionField}}))
+		result, err = api.{{.Command.Custom.ConditionAPI}}(ctx, phone, {{$cmdName}}Flags.{{.Command.Custom.ConditionField}}, {{$cmdName}}Flags.clid)
+	} else {
+		renderer.PrintSuccess("使用 WebCall 发起呼叫（无需座席）...")
+		result, err = api.Webcall(ctx, phone, {{$cmdName}}Flags.clid, {{$cmdName}}Flags.ivr, nil)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Println()
+	renderer.PrintKV(map[string]string{
+		"通话ID": deref(result.CallId),
+		"状态":   deref(result.Status),
+		"号码":   phone,
+	})
+	return nil
+{{else}}
+	_, err = {{.Command.APICall}}
+	if err != nil {
+		return err
+	}
+	return nil
+{{end}}{{else if eq .Command.CustomTemplate "agentsRender"}}
+	agents, err := {{.Command.APICall}}
+	if err != nil {
+		return err
+	}
+	if outputFormat == "table" {
+		fmt.Printf("座席列表 (%d 人):\n\n", len(agents))
+		table := &renderer.Table{
+			Headers: []string{"状态", "姓名", "座席号", "状态"},
+		}
+		for _, agent := range agents {
+			statusIcon := "⚪"
+			status := deref(agent.AgentStatus)
+			switch status {
+			case "空闲":
+				statusIcon = "🟢"
+			case "置忙":
+				statusIcon = "🔴"
+			case "离线":
+				statusIcon = "⚪"
+			}
+			table.Rows = append(table.Rows, renderer.Row{
+				Cells: []renderer.Cell{
+					{Value: statusIcon},
+					{Value: deref(agent.ClientName)},
+					{Value: deref(agent.Cno)},
+					{Value: status},
+				},
+			})
+		}
+		r := renderer.New(renderer.FormatTable)
+		return r.Render(table)
+	}
+	return renderOutput(agents)
+{{else if eq .Command.CustomTemplate "queueRender"}}
+	queue, err := {{.Command.APICall}}
+	if err != nil {
+		return err
+	}
+	qname := deref(queue.Qname)
+	queueID := deref(queue.Qno)
+	if outputFormat == "table" {
+		fmt.Printf("队列: %s (%s)\n\n", qname, queueID)
+		renderer.PrintKV(map[string]string{
+			"等待人数": derefInt(queue.WaitCount),
+			"平均等待": fmt.Sprintf("%s 秒", derefInt(queue.QueueUpWaitTime)),
+			"在线座席": derefInt(queue.OnlineAgentCount),
+			"忙碌座席": derefInt(queue.BusyAgentCount),
+		})
+		return nil
+	}
+	return renderOutput(queue)
+{{else}}
+	_, err = {{.Command.APICall}}
+	return err
+{{end}}}
 `
 
 func generateFromTemplate(filename, tmplStr string, data interface{}) error {

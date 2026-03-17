@@ -108,9 +108,9 @@ endpoints:
 
   # ==================== 呼叫控制 ====================
   webcall:
-    command: ["call"]
+    command: ["call", "webcall"]
     description: "发起 WebCall 外呼"
-    use: "call <phone>"
+    use: "call webcall <phone>"
     resultType: "kv"
     custom:
       conditional: true
