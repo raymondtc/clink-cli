@@ -10,6 +10,28 @@ import (
 	"github.com/raymondtc/clink-cli/pkg/generated"
 )
 
+// Unpause - 座席置闲
+func (a *GeneratedAPI) Unpause(ctx context.Context, agent string) (interface{}, error) {
+	// 构建请求参数
+	params := &generated.UnpauseJSONRequestBody{}
+	params.Cno = agent
+
+	// 调用 API
+	resp, err := a.client.UnpauseWithResponse(ctx, *params)
+	if err != nil {
+		return nil, fmt.Errorf("unpause: %w", err)
+	}
+
+	// 处理响应
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+	}
+	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
+		return nil, fmt.Errorf("unpause: %w", err)
+	}
+	return resp.JSON200, nil
+}
+
 // GetQueueStatus - 查询队列状态
 func (a *GeneratedAPI) GetQueueStatus(ctx context.Context, queue string) ([]map[string]interface{}, int, error) {
 	// 构建请求参数
@@ -40,38 +62,49 @@ func (a *GeneratedAPI) GetQueueStatus(ctx context.Context, queue string) ([]map[
 	return items, total, nil
 }
 
-// Unlink - 挂断当前通话
-func (a *GeneratedAPI) Unlink(ctx context.Context, agent string) (interface{}, error) {
+// ListQueues - 查询队列列表
+func (a *GeneratedAPI) ListQueues(ctx context.Context, offset int, limit int) ([]map[string]interface{}, int, error) {
 	// 构建请求参数
-	params := &generated.UnlinkJSONRequestBody{}
-	params.Cno = agent
+	params := &generated.ListQueuesParams{}
+	if offset != 0 {
+		params.Offset = &offset
+	}
+	if limit != 0 {
+		params.Limit = &limit
+	}
 
 	// 调用 API
-	resp, err := a.client.UnlinkWithResponse(ctx, *params)
+	resp, err := a.client.ListQueuesWithResponse(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("unlink: %w", err)
+		return nil, 0, fmt.Errorf("listQueues: %w", err)
 	}
 
 	// 处理响应
 	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		return nil, 0, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
 	}
-	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
-		return nil, fmt.Errorf("unlink: %w", err)
+	var respCfg codegen.ResponseConfig
+	respCfg.Type = "paged"
+	respCfg.Extract = "list"
+	respCfg.Pagination.Response.TotalPath = "totalCount"
+	respCfg.Pagination.Response.ItemsPath = "queues"
+	items, total, err := a.rp.ParseListResponse(resp.JSON200, respCfg)
+	if err != nil {
+		return nil, 0, fmt.Errorf("listQueues: parse response: %w", err)
 	}
-	return resp.JSON200, nil
+	return items, total, nil
 }
 
-// Hold - 保持当前通话
-func (a *GeneratedAPI) Hold(ctx context.Context, agent string) (interface{}, error) {
+// Unhold - 恢复保持的通话
+func (a *GeneratedAPI) Unhold(ctx context.Context, agent string) (interface{}, error) {
 	// 构建请求参数
-	params := &generated.HoldJSONRequestBody{}
+	params := &generated.UnholdJSONRequestBody{}
 	params.Cno = agent
 
 	// 调用 API
-	resp, err := a.client.HoldWithResponse(ctx, *params)
+	resp, err := a.client.UnholdWithResponse(ctx, *params)
 	if err != nil {
-		return nil, fmt.Errorf("hold: %w", err)
+		return nil, fmt.Errorf("unhold: %w", err)
 	}
 
 	// 处理响应
@@ -79,7 +112,7 @@ func (a *GeneratedAPI) Hold(ctx context.Context, agent string) (interface{}, err
 		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
 	}
 	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
-		return nil, fmt.Errorf("hold: %w", err)
+		return nil, fmt.Errorf("unhold: %w", err)
 	}
 	return resp.JSON200, nil
 }
@@ -116,8 +149,8 @@ func (a *GeneratedAPI) ListCdrIbs(ctx context.Context, startTime int64, endTime 
 	var respCfg codegen.ResponseConfig
 	respCfg.Type = "list"
 	respCfg.Extract = "list"
-	respCfg.Pagination.Response.TotalPath = "total"
-	respCfg.Pagination.Response.ItemsPath = "list"
+	respCfg.Pagination.Response.TotalPath = "totalCount"
+	respCfg.Pagination.Response.ItemsPath = "cdrIb"
 	items, total, err := a.rp.ParseListResponse(resp.JSON200, respCfg)
 	if err != nil {
 		return nil, 0, fmt.Errorf("listCdrIbs: parse response: %w", err)
@@ -126,16 +159,16 @@ func (a *GeneratedAPI) ListCdrIbs(ctx context.Context, startTime int64, endTime 
 }
 
 // ListCdrObs - 查询外呼通话记录
-func (a *GeneratedAPI) ListCdrObs(ctx context.Context, startTime int64, endTime int64, offset int, limit int, phone string, agent string) ([]map[string]interface{}, int, error) {
+func (a *GeneratedAPI) ListCdrObs(ctx context.Context, startTime int64, endTime int64, limit int, offset int, phone string, agent string) ([]map[string]interface{}, int, error) {
 	// 构建请求参数
 	params := &generated.ListCdrObsParams{}
 	params.StartTime = startTime
 	params.EndTime = endTime
-	if offset != 0 {
-		params.Offset = &offset
-	}
 	if limit != 0 {
 		params.Limit = &limit
+	}
+	if offset != 0 {
+		params.Offset = &offset
 	}
 	if phone != "" {
 		params.CustomerNumber = &phone
@@ -157,120 +190,13 @@ func (a *GeneratedAPI) ListCdrObs(ctx context.Context, startTime int64, endTime 
 	var respCfg codegen.ResponseConfig
 	respCfg.Type = "list"
 	respCfg.Extract = "list"
-	respCfg.Pagination.Response.TotalPath = "total"
-	respCfg.Pagination.Response.ItemsPath = "list"
+	respCfg.Pagination.Response.TotalPath = "totalCount"
+	respCfg.Pagination.Response.ItemsPath = "cdrObs"
 	items, total, err := a.rp.ParseListResponse(resp.JSON200, respCfg)
 	if err != nil {
 		return nil, 0, fmt.Errorf("listCdrObs: parse response: %w", err)
 	}
 	return items, total, nil
-}
-
-// Pause - 座席置忙
-func (a *GeneratedAPI) Pause(ctx context.Context, agent string, typeVal int, reason string) (interface{}, error) {
-	// 构建请求参数
-	params := &generated.PauseJSONRequestBody{}
-	params.Cno = agent
-	if typeVal != 0 {
-		params.PauseType = &typeVal
-	}
-	if reason != "" {
-		params.Description = &reason
-	}
-
-	// 调用 API
-	resp, err := a.client.PauseWithResponse(ctx, *params)
-	if err != nil {
-		return nil, fmt.Errorf("pause: %w", err)
-	}
-
-	// 处理响应
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
-	}
-	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
-		return nil, fmt.Errorf("pause: %w", err)
-	}
-	return resp.JSON200, nil
-}
-
-// ListQueues - 查询队列列表
-func (a *GeneratedAPI) ListQueues(ctx context.Context, offset int, limit int) ([]map[string]interface{}, int, error) {
-	// 构建请求参数
-	params := &generated.ListQueuesParams{}
-	if offset != 0 {
-		params.Offset = &offset
-	}
-	if limit != 0 {
-		params.Limit = &limit
-	}
-
-	// 调用 API
-	resp, err := a.client.ListQueuesWithResponse(ctx, params)
-	if err != nil {
-		return nil, 0, fmt.Errorf("listQueues: %w", err)
-	}
-
-	// 处理响应
-	if resp.JSON200 == nil {
-		return nil, 0, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
-	}
-	var respCfg codegen.ResponseConfig
-	respCfg.Type = "paged"
-	respCfg.Extract = "list"
-	respCfg.Pagination.Response.TotalPath = "total"
-	respCfg.Pagination.Response.ItemsPath = "list"
-	items, total, err := a.rp.ParseListResponse(resp.JSON200, respCfg)
-	if err != nil {
-		return nil, 0, fmt.Errorf("listQueues: parse response: %w", err)
-	}
-	return items, total, nil
-}
-
-// Unhold - 恢复保持的通话
-func (a *GeneratedAPI) Unhold(ctx context.Context, agent string) (interface{}, error) {
-	// 构建请求参数
-	params := &generated.UnholdJSONRequestBody{}
-	params.Cno = agent
-
-	// 调用 API
-	resp, err := a.client.UnholdWithResponse(ctx, *params)
-	if err != nil {
-		return nil, fmt.Errorf("unhold: %w", err)
-	}
-
-	// 处理响应
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
-	}
-	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
-		return nil, fmt.Errorf("unhold: %w", err)
-	}
-	return resp.JSON200, nil
-}
-
-// Transfer - 转接电话
-func (a *GeneratedAPI) Transfer(ctx context.Context, agent string, typeVal int, target string) (interface{}, error) {
-	// 构建请求参数
-	params := &generated.TransferJSONRequestBody{}
-	params.Cno = agent
-	params.TransferType = typeVal
-	params.TransferObject = target
-
-	// 调用 API
-	resp, err := a.client.TransferWithResponse(ctx, *params)
-	if err != nil {
-		return nil, fmt.Errorf("transfer: %w", err)
-	}
-
-	// 处理响应
-	if resp.JSON200 == nil {
-		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
-	}
-	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
-		return nil, fmt.Errorf("transfer: %w", err)
-	}
-	return resp.JSON200, nil
 }
 
 // ListAgentStatus - 查询座席状态列表
@@ -334,6 +260,74 @@ func (a *GeneratedAPI) Webcall(ctx context.Context, customerNumber string, clid 
 	return resp.JSON200, nil
 }
 
+// Unlink - 挂断当前通话
+func (a *GeneratedAPI) Unlink(ctx context.Context, agent string) (interface{}, error) {
+	// 构建请求参数
+	params := &generated.UnlinkJSONRequestBody{}
+	params.Cno = agent
+
+	// 调用 API
+	resp, err := a.client.UnlinkWithResponse(ctx, *params)
+	if err != nil {
+		return nil, fmt.Errorf("unlink: %w", err)
+	}
+
+	// 处理响应
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+	}
+	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
+		return nil, fmt.Errorf("unlink: %w", err)
+	}
+	return resp.JSON200, nil
+}
+
+// Hold - 保持当前通话
+func (a *GeneratedAPI) Hold(ctx context.Context, agent string) (interface{}, error) {
+	// 构建请求参数
+	params := &generated.HoldJSONRequestBody{}
+	params.Cno = agent
+
+	// 调用 API
+	resp, err := a.client.HoldWithResponse(ctx, *params)
+	if err != nil {
+		return nil, fmt.Errorf("hold: %w", err)
+	}
+
+	// 处理响应
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+	}
+	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
+		return nil, fmt.Errorf("hold: %w", err)
+	}
+	return resp.JSON200, nil
+}
+
+// Transfer - 转接电话
+func (a *GeneratedAPI) Transfer(ctx context.Context, agent string, typeVal int, target string) (interface{}, error) {
+	// 构建请求参数
+	params := &generated.TransferJSONRequestBody{}
+	params.Cno = agent
+	params.TransferType = typeVal
+	params.TransferObject = target
+
+	// 调用 API
+	resp, err := a.client.TransferWithResponse(ctx, *params)
+	if err != nil {
+		return nil, fmt.Errorf("transfer: %w", err)
+	}
+
+	// 处理响应
+	if resp.JSON200 == nil {
+		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+	}
+	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
+		return nil, fmt.Errorf("transfer: %w", err)
+	}
+	return resp.JSON200, nil
+}
+
 // Online - 座席登录上线
 func (a *GeneratedAPI) Online(ctx context.Context, agent string, queue string, tel string, bindType int) (interface{}, error) {
 	// 构建请求参数
@@ -387,16 +381,22 @@ func (a *GeneratedAPI) Offline(ctx context.Context, agent string) (interface{}, 
 	return resp.JSON200, nil
 }
 
-// Unpause - 座席置闲
-func (a *GeneratedAPI) Unpause(ctx context.Context, agent string) (interface{}, error) {
+// Pause - 座席置忙
+func (a *GeneratedAPI) Pause(ctx context.Context, agent string, typeVal int, reason string) (interface{}, error) {
 	// 构建请求参数
-	params := &generated.UnpauseJSONRequestBody{}
+	params := &generated.PauseJSONRequestBody{}
 	params.Cno = agent
+	if typeVal != 0 {
+		params.PauseType = &typeVal
+	}
+	if reason != "" {
+		params.Description = &reason
+	}
 
 	// 调用 API
-	resp, err := a.client.UnpauseWithResponse(ctx, *params)
+	resp, err := a.client.PauseWithResponse(ctx, *params)
 	if err != nil {
-		return nil, fmt.Errorf("unpause: %w", err)
+		return nil, fmt.Errorf("pause: %w", err)
 	}
 
 	// 处理响应
@@ -404,7 +404,7 @@ func (a *GeneratedAPI) Unpause(ctx context.Context, agent string) (interface{}, 
 		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
 	}
 	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
-		return nil, fmt.Errorf("unpause: %w", err)
+		return nil, fmt.Errorf("pause: %w", err)
 	}
 	return resp.JSON200, nil
 }

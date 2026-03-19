@@ -99,12 +99,12 @@ endpoints:
         request:
           offsetField: "offset"
           limitField: "limit"
-          pageField: "pageNum"  # 如果 API 使用页码而非偏移
+          pageField: "pageNum"
         # 响应字段路径
         response:
-          totalPath: "total"
-          itemsPath: "list"
-          hasMorePath: "hasMore"  # 可选
+          totalPath: "totalCount"
+          itemsPath: "cdrIb"
+          hasMorePath: "hasMore"
       
       # 字段映射（响应 → 输出）
       mapping:
@@ -182,8 +182,8 @@ endpoints:
           offsetField: "offset"
           limitField: "limit"
         response:
-          totalPath: "total"
-          itemsPath: "list"
+          totalPath: "totalCount"
+          itemsPath: "cdrObs"
       mapping:
         - from: "callId"
           to: "通话ID"
@@ -398,8 +398,8 @@ endpoints:
           offsetField: "offset"
           limitField: "limit"
         response:
-          totalPath: "total"
-          itemsPath: "list"
+          totalPath: "totalCount"
+          itemsPath: "queues"
 
   # ==================== 呼叫控制 (通话中) ====================
   unlink:
