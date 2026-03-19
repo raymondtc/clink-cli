@@ -253,6 +253,10 @@ func (g *APIGenerator) buildMethod(opID string, endpoint codegen.EndpointConfig,
 	// 设置客户端方法名
 	method.ClientMethodName = g.toPascalCase(endpoint.OperationID) + "WithResponse"
 
+	// 携带运行时配置
+	method.Transforms = endpoint.Request.Transforms
+	method.ResponseConfig = endpoint.Response
+
 	return method
 }
 
@@ -267,6 +271,8 @@ type APIMethod struct {
 	GeneratedParamsType string
 	ClientMethodName    string // 客户端方法名
 	HasTimeTransform    bool
+	Transforms          []codegen.RequestTransformConfig
+	ResponseConfig      codegen.ResponseConfig
 }
 
 // APIParam 表示 API 参数
@@ -354,6 +360,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/raymondtc/clink-cli/pkg/codegen"
 	"github.com/raymondtc/clink-cli/pkg/generated"
 )
 {{- range .Methods }}
@@ -387,7 +394,33 @@ func (a *GeneratedAPI) {{ .Name }}(ctx context.Context{{- range .Params }}, {{ .
 		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
 	}
 
+	{{- if or (eq .ResponseConfig.Type "list") (eq .ResponseConfig.Type "paged")}}
+	var respCfg codegen.ResponseConfig
+	respCfg.Type = {{ printf "%q" .ResponseConfig.Type }}
+	respCfg.Extract = {{ printf "%q" .ResponseConfig.Extract }}
+	respCfg.Pagination.Response.TotalPath = {{ printf "%q" .ResponseConfig.Pagination.Response.TotalPath }}
+	respCfg.Pagination.Response.ItemsPath = {{ printf "%q" .ResponseConfig.Pagination.Response.ItemsPath }}
+	items, total, err := a.rp.ParseListResponse(resp.JSON200, respCfg)
+	if err != nil {
+		return nil, fmt.Errorf("{{ .OperationID }}: parse response: %w", err)
+	}
+	_ = total
+	return items, nil
+	{{- else if eq .ResponseConfig.Type "single"}}
+	var respCfg codegen.ResponseConfig
+	respCfg.Type = "single"
+	respCfg.Extract = {{ printf "%q" .ResponseConfig.Extract }}
+	item, err := a.rp.ParseSingleResponse(resp.JSON200, respCfg)
+	if err != nil {
+		return nil, fmt.Errorf("{{ .OperationID }}: parse response: %w", err)
+	}
+	return item, nil
+	{{- else}}
+	if err := a.rp.ParseSimpleResponse(resp.JSON200); err != nil {
+		return nil, fmt.Errorf("{{ .OperationID }}: %w", err)
+	}
 	return resp.JSON200, nil
+	{{- end}}
 }
 {{- end }}
 `

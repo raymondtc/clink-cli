@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/raymondtc/clink-cli/pkg/client"
+	"github.com/raymondtc/clink-cli/pkg/codegen"
 	"github.com/raymondtc/clink-cli/pkg/generated"
 )
 
@@ -14,6 +15,8 @@ import (
 type GeneratedAPI struct {
 	client *generated.ClientWithResponses
 	config *client.AuthConfig
+	rb     *codegen.RequestBuilder
+	rp     *codegen.ResponseParser
 }
 
 // NewGeneratedAPI creates a new API instance using generated client
@@ -33,8 +36,20 @@ func NewGeneratedAPI(baseURL string, config *client.AuthConfig) (*GeneratedAPI, 
 		return nil, fmt.Errorf("create client: %w", err)
 	}
 
+	rb, err := codegen.NewRequestBuilder("Asia/Shanghai", 10)
+	if err != nil {
+		return nil, fmt.Errorf("create request builder: %w", err)
+	}
+
+	rp, err := codegen.NewResponseParser("Asia/Shanghai")
+	if err != nil {
+		return nil, fmt.Errorf("create response parser: %w", err)
+	}
+
 	return &GeneratedAPI{
 		client: c,
 		config: config,
+		rb:     rb,
+		rp:     rp,
 	}, nil
 }
