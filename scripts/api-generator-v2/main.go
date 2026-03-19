@@ -257,6 +257,19 @@ func (g *APIGenerator) buildMethod(opID string, endpoint codegen.EndpointConfig,
 	method.Transforms = endpoint.Request.Transforms
 	method.ResponseConfig = endpoint.Response
 
+	// 设置具体返回类型
+	switch endpoint.Response.Type {
+	case "list", "paged":
+		method.ReturnType = "[]map[string]interface{}"
+		method.ReturnTypeComment = "items, total"
+	case "single":
+		method.ReturnType = "map[string]interface{}"
+		method.ReturnTypeComment = "item"
+	default: // "simple" and anything else
+		method.ReturnType = "interface{}"
+		method.ReturnTypeComment = "response"
+	}
+
 	return method
 }
 
@@ -268,6 +281,8 @@ type APIMethod struct {
 	HTTPMethod          string
 	Params              []APIParam
 	ResponseType        string
+	ReturnType          string // concrete Go return type
+	ReturnTypeComment   string // comment describing the return
 	GeneratedParamsType string
 	ClientMethodName    string // 客户端方法名
 	HasTimeTransform    bool
@@ -366,7 +381,13 @@ import (
 {{- range .Methods }}
 
 // {{ .Name }} - {{ .Description }}
+{{- if or (eq .ResponseConfig.Type "list") (eq .ResponseConfig.Type "paged") }}
+func (a *GeneratedAPI) {{ .Name }}(ctx context.Context{{- range .Params }}, {{ .VarName }} {{ .Type }}{{- end }}) ([]map[string]interface{}, int, error) {
+{{- else if eq .ResponseConfig.Type "single" }}
+func (a *GeneratedAPI) {{ .Name }}(ctx context.Context{{- range .Params }}, {{ .VarName }} {{ .Type }}{{- end }}) (map[string]interface{}, error) {
+{{- else }}
 func (a *GeneratedAPI) {{ .Name }}(ctx context.Context{{- range .Params }}, {{ .VarName }} {{ .Type }}{{- end }}) (interface{}, error) {
+{{- end }}
 	// 构建请求参数
 	params := &{{ .GeneratedParamsType }}{}
 	{{- range .Params }}
@@ -386,12 +407,20 @@ func (a *GeneratedAPI) {{ .Name }}(ctx context.Context{{- range .Params }}, {{ .
 	resp, err := a.client.{{ .ClientMethodName }}(ctx, *params)
 	{{- end }}
 	if err != nil {
+		{{- if or (eq .ResponseConfig.Type "list") (eq .ResponseConfig.Type "paged") }}
+		return nil, 0, fmt.Errorf("{{ .OperationID }}: %w", err)
+		{{- else }}
 		return nil, fmt.Errorf("{{ .OperationID }}: %w", err)
+		{{- end }}
 	}
 
 	// 处理响应
 	if resp.JSON200 == nil {
+		{{- if or (eq .ResponseConfig.Type "list") (eq .ResponseConfig.Type "paged") }}
+		return nil, 0, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		{{- else }}
 		return nil, fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		{{- end }}
 	}
 
 	{{- if or (eq .ResponseConfig.Type "list") (eq .ResponseConfig.Type "paged")}}
@@ -402,10 +431,9 @@ func (a *GeneratedAPI) {{ .Name }}(ctx context.Context{{- range .Params }}, {{ .
 	respCfg.Pagination.Response.ItemsPath = {{ printf "%q" .ResponseConfig.Pagination.Response.ItemsPath }}
 	items, total, err := a.rp.ParseListResponse(resp.JSON200, respCfg)
 	if err != nil {
-		return nil, fmt.Errorf("{{ .OperationID }}: parse response: %w", err)
+		return nil, 0, fmt.Errorf("{{ .OperationID }}: parse response: %w", err)
 	}
-	_ = total
-	return items, nil
+	return items, total, nil
 	{{- else if eq .ResponseConfig.Type "single"}}
 	var respCfg codegen.ResponseConfig
 	respCfg.Type = "single"

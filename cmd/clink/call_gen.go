@@ -50,22 +50,16 @@ func runwebcall(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	phone := args[0]
 
-	var result *generated.CallResult
-	if webcallFlags.agent != "" {
-		renderer.PrintSuccess(fmt.Sprintf("使用座席 %s 发起外呼...", webcallFlags.agent))
-		result, err = api.MakeCall(ctx, phone, webcallFlags.agent, webcallFlags.clid)
-	} else {
-		renderer.PrintSuccess("使用 WebCall 发起呼叫（无需座席）...")
-		result, err = api.Webcall(ctx, phone, webcallFlags.clid, webcallFlags.ivr, nil)
-	}
+	renderer.PrintSuccess("使用 WebCall 发起呼叫（无需座席）...")
+	resp, err := api.Webcall(ctx, phone, webcallFlags.clid, webcallFlags.ivr, webcallFlags.requestId)
 	if err != nil {
 		return err
 	}
+	_ = resp
 	fmt.Println()
 	renderer.PrintKV(map[string]string{
-		"通话ID": deref(result.CallId),
-		"状态":   deref(result.Status),
-		"号码":   phone,
+		"状态": "submitted",
+		"号码": phone,
 	})
 	return nil
 }
@@ -99,7 +93,7 @@ func runhangup(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Hangup(ctx, hangupFlags.agent)
+	_, err = api.Unlink(ctx, hangupFlags.agent)
 	if err != nil {
 		return err
 	}
@@ -136,7 +130,7 @@ func runhold(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Hold(ctx, holdFlags.agent)
+	_, err = api.Hold(ctx, holdFlags.agent)
 	if err != nil {
 		return err
 	}
@@ -173,7 +167,7 @@ func rununhold(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Unhold(ctx, unholdFlags.agent)
+	_, err = api.Unhold(ctx, unholdFlags.agent)
 	if err != nil {
 		return err
 	}
@@ -218,7 +212,7 @@ func runtransfer(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Transfer(ctx, transferFlags.agent, transferFlags.typeVal, transferFlags.target)
+	_, err = api.Transfer(ctx, transferFlags.agent, transferFlags.typeVal, transferFlags.target)
 	if err != nil {
 		return err
 	}

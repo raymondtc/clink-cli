@@ -11,6 +11,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// parseDateRange converts date strings (YYYY-MM-DD) to Unix second timestamps.
+// start is treated as 00:00:00, end as 23:59:59.
+func parseDateRange(startDate, endDate string) (int64, int64, error) {
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+	start, err := time.ParseInLocation("2006-01-02", startDate, loc)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid start date %q: %w", startDate, err)
+	}
+	end, err := time.ParseInLocation("2006-01-02", endDate, loc)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid end date %q: %w", endDate, err)
+	}
+	end = end.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+	return start.Unix(), end.Unix(), nil
+}
+
 var inboundFlags struct {
 	start  string
 	end    string
@@ -44,8 +60,6 @@ func init() {
 
 func runinbound(cmd *cobra.Command, args []string) error {
 	_ = fmt.Sprintf("")
-	_ = time.Now()
-	_ = context.Background
 	_ = generated.CallResult{}
 	_ = renderer.Table{}
 	api, err := createAPI()
@@ -54,7 +68,11 @@ func runinbound(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	records, total, err := api.GetInboundRecords(ctx, inboundFlags.start, inboundFlags.end, inboundFlags.phone, inboundFlags.agent, inboundFlags.offset/inboundFlags.limit+1, inboundFlags.limit)
+	startTime, endTime, err := parseDateRange(inboundFlags.start, inboundFlags.end)
+	if err != nil {
+		return err
+	}
+	records, total, err := api.ListCdrIbs(ctx, startTime, endTime, inboundFlags.offset, inboundFlags.limit, inboundFlags.phone, inboundFlags.agent)
 	if err != nil {
 		return err
 	}
@@ -94,8 +112,6 @@ func init() {
 
 func runoutbound(cmd *cobra.Command, args []string) error {
 	_ = fmt.Sprintf("")
-	_ = time.Now()
-	_ = context.Background
 	_ = generated.CallResult{}
 	_ = renderer.Table{}
 	api, err := createAPI()
@@ -104,7 +120,11 @@ func runoutbound(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	records, total, err := api.GetOutboundRecords(ctx, outboundFlags.start, outboundFlags.end, outboundFlags.phone, outboundFlags.agent, outboundFlags.offset/outboundFlags.limit+1, outboundFlags.limit)
+	startTime, endTime, err := parseDateRange(outboundFlags.start, outboundFlags.end)
+	if err != nil {
+		return err
+	}
+	records, total, err := api.ListCdrObs(ctx, startTime, endTime, outboundFlags.offset, outboundFlags.limit, outboundFlags.phone, outboundFlags.agent)
 	if err != nil {
 		return err
 	}
