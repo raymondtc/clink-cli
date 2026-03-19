@@ -4,16 +4,18 @@ OAPI_CODEGEN := $(shell go env GOPATH)/bin/oapi-codegen
 # Generator scripts
 CLI_GENERATOR := scripts/clink-generator/main.go
 API_GENERATOR := scripts/api-generator/main.go
+API_GENERATOR_V2 := scripts/api-generator-v2/main.go
 
 # Config files
 CONFIG_FILE := config/generator.yaml
+CONFIG_FILE_V2 := config/generator.v2.yaml
 OPENAPI_FILE := api/openapi.yaml
 
 # Output directories
 CMD_OUTPUT := cmd/clink
 API_OUTPUT := pkg/api
 
-.PHONY: all generate generate-cli generate-api build test clean help
+.PHONY: all generate generate-cli generate-api generate-api-v2 generate-verify build test clean help
 
 # Default: show help
 help:
@@ -22,6 +24,8 @@ help:
 	@echo "  make generate        - Generate all code (CLI + API)"
 	@echo "  make generate-cli    - Generate CLI commands from config"
 	@echo "  make generate-api    - Generate API methods from config"
+	@echo "  make generate-api-v2 - Generate API methods using v2 generator"
+	@echo "  make generate-verify - Generate and verify v2 code compiles"
 	@echo "  make generate-types  - Generate types from OpenAPI using oapi-codegen"
 	@echo "  make build           - Build the CLI binary"
 	@echo "  make test            - Run tests"
@@ -50,11 +54,24 @@ generate-cli:
 	@go run $(CLI_GENERATOR) $(CONFIG_FILE) $(OPENAPI_FILE) $(CMD_OUTPUT)
 	@echo "✓ CLI commands generated"
 
-# Generate API methods from config  
+# Generate API methods from config
 generate-api:
 	@echo "Generating API methods..."
 	@go run $(API_GENERATOR) $(CONFIG_FILE) $(OPENAPI_FILE) $(API_OUTPUT)/auto_generated.go
 	@echo "✓ API methods generated"
+
+# Generate API methods using v2 generator
+generate-api-v2:
+	@echo "Generating API methods (v2)..."
+	@go run $(API_GENERATOR_V2) $(CONFIG_FILE_V2) $(OPENAPI_FILE) $(API_OUTPUT)/auto_generated.go
+	@echo "✓ API methods generated (v2)"
+
+# Verify generated code compiles
+generate-verify: generate-api-v2
+	@echo "Verifying generated code..."
+	@go build ./pkg/api/...
+	@gofmt -l $(API_OUTPUT)/auto_generated.go | grep . && echo "❌ Format check failed" && exit 1 || echo "✓ Format check passed"
+	@echo "✓ Generated code verification passed"
 
 # Build CLI binary
 build:

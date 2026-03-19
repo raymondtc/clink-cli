@@ -39,23 +39,11 @@ func runstatus(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	queue, err := api.GetQueueStatus(ctx, statusFlags.queue)
+	queues, _, err := api.GetQueueStatus(ctx, statusFlags.queue)
 	if err != nil {
 		return err
 	}
-	qname := deref(queue.Qname)
-	queueID := deref(queue.Qno)
-	if outputFormat == "table" {
-		fmt.Printf("队列: %s (%s)\n\n", qname, queueID)
-		renderer.PrintKV(map[string]string{
-			"等待人数": derefInt(queue.WaitCount),
-			"平均等待": fmt.Sprintf("%s 秒", derefInt(queue.QueueUpWaitTime)),
-			"在线座席": derefInt(queue.OnlineAgentCount),
-			"忙碌座席": derefInt(queue.BusyAgentCount),
-		})
-		return nil
-	}
-	return renderOutput(queue)
+	return renderOutput(queues)
 }
 
 var listFlags struct {
@@ -89,7 +77,7 @@ func runlist(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	queues, err := api.ListQueues(ctx, listFlags.offset, listFlags.limit)
+	queues, _, err := api.ListQueues(ctx, listFlags.offset, listFlags.limit)
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,477 @@
+# Clink CLI 生成器配置 v2.0
+# 零手写代码实现：通过配置生成完整业务逻辑
+
+version: "2.0"
+
+# 全局配置
+global:
+  outputFormat: table
+  defaultPageSize: 10
+  timeFormat: "2006-01-02"
+  
+  # 新增：API 客户端配置
+  client:
+    baseURL: "https://api-bj.clink.cn"
+    timeout: 30
+    retry:
+      maxAttempts: 3
+      backoff: exponential
+
+  # 新增：全局响应映射（可被 endpoint 覆盖）
+  response:
+    successCode: 200
+    codePath: "code"
+    messagePath: "message"
+    dataPath: "data"
+
+# 类型定义（可复用的结构）
+types:
+  TimeRange:
+    startTime:
+      type: int64
+      required: true
+      description: "开始时间(Unix时间戳秒)"
+    endTime:
+      type: int64
+      required: true
+      description: "结束时间(Unix时间戳秒)"
+
+  Pagination:
+    offset:
+      type: int
+      default: 0
+    limit:
+      type: int
+      default: 10
+      max: 100
+
+# 接口配置
+endpoints:
+  # ==================== 通话记录 ====================
+  listCdrIbs:
+    # 命令路径：clink records inbound
+    command: ["records", "inbound"]
+    description: "查询呼入通话记录"
+    
+    # OpenAPI operationId 映射
+    operationId: "listCdrIbs"
+    
+    # 参数配置（继承 + 扩展）
+    parameters:
+      # 继承全局类型
+      useTypes: ["TimeRange", "Pagination"]
+      # 额外参数
+      fields:
+        - name: customerNumber
+          flag: phone
+          shorthand: p
+          type: string
+          description: "客户号码筛选"
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          description: "座席号筛选"
+    
+    # 新增：请求转换
+    request:
+      transforms:
+        - field: startTime
+          from: "date"
+          to: "timestamp"
+          format: "2006-01-02"
+          timezone: "Asia/Shanghai"
+        - field: endTime
+          from: "date"
+          to: "timestamp"
+          format: "2006-01-02"
+          timezone: "Asia/Shanghai"
+    
+    # 新增：响应处理配置
+    response:
+      type: "list"  # list | single | paged | simple
+      extract: "list"  # 从 data 中提取的字段路径
+      
+      # 分页配置
+      pagination:
+        enabled: true
+        # 请求参数
+        request:
+          offsetField: "offset"
+          limitField: "limit"
+          pageField: "pageNum"
+        # 响应字段路径
+        response:
+          totalPath: "totalCount"
+          itemsPath: "cdrIb"
+          hasMorePath: "hasMore"
+      
+      # 字段映射（响应 → 输出）
+      mapping:
+        - from: "callId"
+          to: "通话ID"
+          type: string
+        - from: "customerNumber"
+          to: "客户号码"
+          type: string
+        - from: "cno"
+          to: "座席号"
+          type: string
+        - from: "startTime"
+          to: "开始时间"
+          type: datetime
+          format: "2006-01-02 15:04:05"
+        - from: "duration"
+          to: "通话时长(秒)"
+          type: duration
+          unit: seconds
+    
+    # 新增：错误处理
+    errors:
+      - code: 400
+        message: "参数错误"
+        action: "return"  # return | retry | ignore
+      - code: 401
+        message: "认证失败"
+        action: "return"
+      - code: 429
+        message: "请求过于频繁"
+        action: "retry"
+        retryAfter: "header:X-RateLimit-Reset"
+    
+    # 新增：输出格式
+    output:
+      format: "table"  # table | json | csv | raw
+      columns: ["通话ID", "客户号码", "座席号", "开始时间", "通话时长(秒)"]
+      sortBy: "startTime"
+      sortOrder: "desc"
+
+  listCdrObs:
+    command: ["records", "outbound"]
+    description: "查询外呼通话记录"
+    operationId: "listCdrObs"
+    parameters:
+      useTypes: ["TimeRange", "Pagination"]
+      fields:
+        - name: customerNumber
+          flag: phone
+          shorthand: p
+          type: string
+          description: "客户号码筛选"
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          description: "座席号筛选"
+    request:
+      transforms:
+        - field: startTime
+          from: "date"
+          to: "timestamp"
+          format: "2006-01-02"
+        - field: endTime
+          from: "date"
+          to: "timestamp"
+          format: "2006-01-02"
+    response:
+      type: "list"
+      extract: "list"
+      pagination:
+        enabled: true
+        request:
+          offsetField: "offset"
+          limitField: "limit"
+        response:
+          totalPath: "totalCount"
+          itemsPath: "cdrObs"
+      mapping:
+        - from: "callId"
+          to: "通话ID"
+        - from: "customerNumber"
+          to: "客户号码"
+        - from: "cno"
+          to: "座席号"
+
+  # ==================== 座席状态 ====================
+  listAgentStatus:
+    command: ["agents"]
+    description: "查询座席状态列表"
+    operationId: "listAgentStatus"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          description: "座席号 (可选)"
+    response:
+      type: "list"
+      extract: "list"
+      mapping:
+        - from: "cno"
+          to: "座席号"
+        - from: "name"
+          to: "姓名"
+        - from: "status"
+          to: "状态"
+          # 枚举映射
+          enum:
+            0: "离线"
+            1: "在线"
+            2: "忙碌"
+            3: "通话中"
+    output:
+      format: "table"
+
+  # ==================== 呼叫控制 ====================
+  webcall:
+    command: ["call", "webcall"]
+    description: "发起 WebCall 外呼"
+    use: "call webcall <phone>"
+    operationId: "webcall"
+    
+    # 位置参数
+    arguments:
+      - name: phone
+        description: "客户电话号码"
+        required: true
+        validate: "phone"
+    
+    parameters:
+      fields:
+        - name: customerNumber
+          source: arg  # 从参数获取
+          argName: phone
+          required: true
+        - name: clid
+          flag: clid
+          type: string
+          description: "外显号码"
+        - name: ivrName
+          flag: ivr
+          type: string
+          description: "IVR流程名称"
+          default: "工作时间"
+        - name: requestUniqueId
+          flag: request-id
+          type: string
+          description: "请求唯一ID"
+          # 自动生成
+          autoGenerate: "uuid"
+    
+    response:
+      type: "simple"
+      extract: "callId"
+      successMessage: "外呼发起成功，通话ID: {{.callId}}"
+
+  # ==================== 座席管理 ====================
+  online:
+    command: ["agent", "online"]
+    description: "座席登录上线"
+    operationId: "online"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          description: "座席号"
+          required: true
+        - name: qno
+          flag: queue
+          shorthand: q
+          type: string
+          description: "登录队列号"
+        - name: bindTel
+          flag: tel
+          type: string
+          description: "绑定电话号码"
+        - name: bindType
+          flag: bind-type
+          type: int
+          description: "绑定类型"
+          default: 1
+          enum:
+            1: "分机"
+            2: "直线"
+            3: "软电话"
+    response:
+      type: "simple"
+      successMessage: "座席 {{.cno}} 登录成功"
+
+  offline:
+    command: ["agent", "offline"]
+    description: "座席登出下线"
+    operationId: "offline"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          required: true
+    response:
+      type: "simple"
+      successMessage: "座席 {{.cno}} 已下线"
+
+  pause:
+    command: ["agent", "pause"]
+    description: "座席置忙"
+    operationId: "pause"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          required: true
+        - name: pauseType
+          flag: type
+          shorthand: t
+          type: int
+          default: 1
+        - name: description
+          flag: reason
+          shorthand: r
+          type: string
+          description: "忙碌原因"
+    response:
+      type: "simple"
+      successMessage: "座席 {{.cno}} 已置忙"
+
+  unpause:
+    command: ["agent", "ready"]
+    description: "座席置闲"
+    operationId: "unpause"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          required: true
+    response:
+      type: "simple"
+      successMessage: "座席 {{.cno}} 已置闲"
+
+  # ==================== 队列管理 ====================
+  getQueueStatus:
+    command: ["queue", "status"]
+    description: "查询队列状态"
+    operationId: "getQueueStatus"
+    parameters:
+      fields:
+        - name: qnos
+          flag: queue
+          shorthand: q
+          type: string
+          description: "队列号列表，逗号分隔"
+          # 数组转换
+          transform: "split:,"
+    response:
+      type: "list"
+      extract: "queues"
+      mapping:
+        - from: "qno"
+          to: "队列号"
+        - from: "name"
+          to: "队列名称"
+        - from: "agentCount"
+          to: "在线座席"
+        - from: "waitingCount"
+          to: "等待客户"
+        - from: "avgWaitTime"
+          to: "平均等待(秒)"
+
+  listQueues:
+    command: ["queue", "list"]
+    description: "查询队列列表"
+    operationId: "listQueues"
+    parameters:
+      useTypes: ["Pagination"]
+    response:
+      type: "paged"
+      extract: "list"
+      pagination:
+        enabled: true
+        request:
+          offsetField: "offset"
+          limitField: "limit"
+        response:
+          totalPath: "totalCount"
+          itemsPath: "queues"
+
+  # ==================== 呼叫控制 (通话中) ====================
+  unlink:
+    command: ["call", "hangup"]
+    description: "挂断当前通话"
+    operationId: "unlink"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          required: true
+    response:
+      type: "simple"
+      successMessage: "通话已挂断"
+
+  hold:
+    command: ["call", "hold"]
+    description: "保持当前通话"
+    operationId: "hold"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          required: true
+    response:
+      type: "simple"
+      successMessage: "通话已保持"
+
+  unhold:
+    command: ["call", "unhold"]
+    description: "恢复保持的通话"
+    operationId: "unhold"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          required: true
+    response:
+      type: "simple"
+      successMessage: "通话已恢复"
+
+  transfer:
+    command: ["call", "transfer"]
+    description: "转接电话"
+    operationId: "transfer"
+    parameters:
+      fields:
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          required: true
+        - name: transferType
+          flag: type
+          shorthand: t
+          type: int
+          required: true
+          enum:
+            1: "座席"
+            2: "队列"
+            3: "外线"
+        - name: transferObject
+          flag: target
+          type: string
+          required: true
+          description: "转接目标"
+    response:
+      type: "simple"
+      successMessage: "转接成功"

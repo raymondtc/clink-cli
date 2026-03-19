@@ -38,37 +38,9 @@ func runagents(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	agents, err := api.GetAgentStatus(ctx, agentsFlags.agent)
+	agents, _, err := api.ListAgentStatus(ctx, agentsFlags.agent)
 	if err != nil {
 		return err
-	}
-	if outputFormat == "table" {
-		fmt.Printf("座席列表 (%d 人):\n\n", len(agents))
-		table := &renderer.Table{
-			Headers: []string{"状态", "姓名", "座席号", "状态"},
-		}
-		for _, agent := range agents {
-			statusIcon := "⚪"
-			status := deref(agent.AgentStatus)
-			switch status {
-			case "空闲":
-				statusIcon = "🟢"
-			case "置忙":
-				statusIcon = "🔴"
-			case "离线":
-				statusIcon = "⚪"
-			}
-			table.Rows = append(table.Rows, renderer.Row{
-				Cells: []renderer.Cell{
-					{Value: statusIcon},
-					{Value: deref(agent.ClientName)},
-					{Value: deref(agent.Cno)},
-					{Value: status},
-				},
-			})
-		}
-		r := renderer.New(renderer.FormatTable)
-		return r.Render(table)
 	}
 	return renderOutput(agents)
 }
