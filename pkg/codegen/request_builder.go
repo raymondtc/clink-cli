@@ -250,7 +250,7 @@ func (rb *RequestBuilder) ApplyTypeDefaults(
 	typeName string,
 	typeDef TypeDefinition,
 ) error {
-	for fieldName, fieldConfig := range typeDef.Fields {
+	for fieldName, fieldConfig := range typeDef {
 		flagName := fieldName
 		if fieldConfig.Flag != "" {
 			flagName = fieldConfig.Flag

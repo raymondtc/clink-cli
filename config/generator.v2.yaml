@@ -28,14 +28,14 @@ global:
 types:
   TimeRange:
     startTime:
-      type: string
-      format: date
-      description: "开始时间"
+      type: int64
+      required: true
+      description: "开始时间(Unix时间戳秒)"
     endTime:
-      type: string
-      format: date
-      description: "结束时间"
-  
+      type: int64
+      required: true
+      description: "结束时间(Unix时间戳秒)"
+
   Pagination:
     offset:
       type: int

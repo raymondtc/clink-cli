@@ -182,7 +182,32 @@ func (g *APIGenerator) buildMethod(opID string, endpoint codegen.EndpointConfig,
 		}
 	}
 
-	// 构建参数
+	// 收集所有参数（用于处理字段冲突）
+	paramMap := make(map[string]APIParam)
+
+	// 1. 首先展开 useTypes 中的类型
+	for _, typeName := range endpoint.Parameters.UseTypes {
+		typeDef, exists := g.Config.Types[typeName]
+		if !exists {
+			fmt.Printf("⚠ Warning: type %s not found in config.Types\n", typeName)
+			continue
+		}
+		for fieldName, field := range typeDef {
+			// 类型定义的字段没有 name 字段，使用 map 的 key
+			param := APIParam{
+				Name:      fieldName,
+				VarName:   g.toVarName(field.Flag, fieldName),
+				Type:      g.mapType(field.Type),
+				Required:  field.Required,
+				FlagName:  field.Flag,
+				FieldName: g.toPascalCase(fieldName),
+				ZeroValue: g.zeroValue(field.Type),
+			}
+			paramMap[fieldName] = param
+		}
+	}
+
+	// 2. 然后处理 fields 中的字段（会覆盖 useTypes 中的同名字段）
 	for _, field := range endpoint.Parameters.Fields {
 		param := APIParam{
 			Name:      field.Name,
@@ -193,7 +218,30 @@ func (g *APIGenerator) buildMethod(opID string, endpoint codegen.EndpointConfig,
 			FieldName: g.toPascalCase(field.Name),
 			ZeroValue: g.zeroValue(field.Type),
 		}
-		method.Params = append(method.Params, param)
+		paramMap[field.Name] = param
+	}
+
+	// 3. 将 map 转换为 slice（保持稳定的顺序）
+	// 先添加 useTypes 展开的类型字段（按 useTypes 顺序）
+	for _, typeName := range endpoint.Parameters.UseTypes {
+		typeDef, exists := g.Config.Types[typeName]
+		if !exists {
+			continue
+		}
+		for fieldName := range typeDef {
+			if param, ok := paramMap[fieldName]; ok {
+				method.Params = append(method.Params, param)
+				// 删除已添加的字段，避免重复
+				delete(paramMap, fieldName)
+			}
+		}
+	}
+	// 然后添加 fields 中定义的字段
+	for _, field := range endpoint.Parameters.Fields {
+		if param, ok := paramMap[field.Name]; ok {
+			method.Params = append(method.Params, param)
+			delete(paramMap, field.Name)
+		}
 	}
 
 	// 获取生成的类型名称 (oapi-codegen 生成的是 PascalCase)
@@ -250,6 +298,8 @@ func (g *APIGenerator) mapType(t string) string {
 	switch t {
 	case "int":
 		return "int"
+	case "int64":
+		return "int64"
 	case "bool":
 		return "bool"
 	default:
@@ -260,7 +310,7 @@ func (g *APIGenerator) mapType(t string) string {
 // zeroValue 返回类型的零值
 func (g *APIGenerator) zeroValue(t string) string {
 	switch t {
-	case "int":
+	case "int", "int64":
 		return "0"
 	case "bool":
 		return "false"

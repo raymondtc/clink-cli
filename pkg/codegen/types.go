@@ -124,10 +124,8 @@ type GlobalConfig struct {
 	} `yaml:"response"`
 }
 
-// TypeDefinition defines a reusable type
-type TypeDefinition struct {
-	Fields map[string]ParameterConfig `yaml:"fields"`
-}
+// TypeDefinition defines a reusable type (map of field name to parameter config)
+type TypeDefinition map[string]ParameterConfig
 
 // APIClient defines the interface for generated API clients
 type APIClient interface {
