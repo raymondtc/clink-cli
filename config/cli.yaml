@@ -1,0 +1,403 @@
+# Clink CLI 配置 v3.0
+# 精简的"覆盖层"配置 - 基于 SDK OpenAPI
+
+version: "3.0"
+
+# 元信息
+meta:
+  description: "天润融通 CLI 配置"
+  source: "sdk/clink-sdk"
+  # 与 OpenAPI 规范的兼容性版本
+  openapiVersion: "3.0.16"
+
+# 全局默认值
+defaults:
+  output:
+    format: table
+    timeFormat: "2006-01-02 15:04"
+  pagination:
+    limit: 50
+    maxLimit: 100
+
+# 命令分组（用于 help 组织和文档生成）
+groups:
+  records:
+    title: "通话记录"
+    emoji: "📞"
+    description: "查询呼入/外呼通话记录"
+    
+  agents:
+    title: "座席管理"
+    emoji: "👤"
+    description: "座席状态查询与控制"
+    
+  call:
+    title: "呼叫控制"
+    emoji: "📞"
+    description: "发起外呼、转接、挂断等"
+    
+  queue:
+    title: "队列管理"
+    emoji: "📊"
+    description: "队列状态监控与配置"
+
+# 命令配置
+# key = OpenAPI operationId (如 ListCdrIbs, Webcall)
+commands:
+  # ==================== 通话记录 ====================
+  ListCdrIbs:
+    # 命令路径: clink records inbound
+    path: ["records", "inbound"]
+    aliases: ["ib", "in"]
+    group: records
+    
+    # 参数覆盖（只写需要修改的，其余从 OpenAPI 继承）
+    parameters:
+      startTime:
+        flag: start
+        shorthand: s
+        default: "7d"
+        # 值转换
+        transform:
+          input: relative    # 支持 7d, 1h, 30d
+          output: timestamp  # 转换为 Unix 时间戳
+          
+      endTime:
+        flag: end
+        shorthand: e
+        default: "now"
+        transform:
+          input: relative
+          output: timestamp
+          
+      customerNumber:
+        flag: phone
+        shorthand: p
+        
+      cno:
+        flag: agent
+        shorthand: a
+        
+      hiddenType:
+        hidden: true  # 不在 CLI 暴露
+        
+      userField:
+        hidden: true
+        
+    # 输出配置
+    output:
+      format: table
+      columns:
+        - key: callId
+          header: "通话ID"
+          width: 22
+          
+        - key: customerNumber
+          header: "客户号码"
+          mask: true  # 脱敏显示
+          
+        - key: cno
+          header: "座席"
+          width: 8
+          
+        - key: startTime
+          header: "开始时间"
+          type: datetime
+          format: "01-02 15:04"
+          
+        - key: duration
+          header: "时长"
+          type: duration
+          unit: seconds
+
+  ListCdrObs:
+    path: ["records", "outbound"]
+    aliases: ["ob", "out"]
+    group: records
+    # 继承 ListCdrIbs 的参数配置
+    extends: ListCdrIbs
+    # 差异化配置
+    parameters:
+      # 可以覆盖或添加参数
+      callType:
+        flag: type
+        enum:
+          1: "预览外呼"
+          2: "预测外呼"
+          3: "IVR外呼"
+
+  # ==================== 座席状态 ====================
+  AgentStatus:
+    path: ["agents"]
+    aliases: ["ag", "status"]
+    group: agents
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: false  # 可选，不传查全部
+        
+    output:
+      format: table
+      columns:
+        - key: cno
+          header: "工号"
+          width: 8
+          
+        - key: name
+          header: "姓名"
+          width: 12
+          
+        - key: status
+          header: "状态"
+          # 状态值映射
+          map:
+            0: {text: "离线", color: gray}
+            1: {text: "在线", color: green}
+            2: {text: "置忙", color: yellow}
+            3: {text: "通话中", color: blue}
+
+  # ==================== 呼叫控制 ====================
+  Webcall:
+    path: ["call"]
+    aliases: ["c", "dial"]
+    group: call
+    dangerous: true  # 危险操作，需确认
+    confirm: "确定要呼叫 {phone} 吗？"
+    
+    # 位置参数映射
+    arguments:
+      - name: phone
+        from: customerNumber  # 映射到 API 参数
+        required: true
+        validate: phone       # 手机号格式验证
+        
+    parameters:
+      customerNumber:
+        positional: true      # 标记为位置参数
+        argName: phone
+        
+      clid:
+        flag: caller
+        description: "外显号码"
+        
+      ivrName:
+        flag: ivr
+        default: "工作时间"
+        
+      requestUniqueId:
+        hidden: true
+        auto: uuid  # 自动生成 UUID
+        
+  Callout:
+    path: ["call", "agent"]
+    aliases: ["outbound"]  # 改为 outbound，避免与 ListCdrObs 的 out 冲突
+    group: call
+    dangerous: true
+    confirm: "确定要使用座席 {agent} 外呼 {phone} 吗？"
+    
+    arguments:
+      - name: phone
+        from: customerNumber
+        required: true
+        validate: phone
+        
+      - name: agent
+        from: cno
+        required: true
+        
+    parameters:
+      customerNumber:
+        positional: true
+        argName: phone
+        
+      cno:
+        positional: true
+        argName: agent
+
+  # ==================== 座席控制 ====================
+  Online:
+    path: ["agent", "online"]
+    aliases: ["on", "login"]
+    group: agents
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+        
+      qno:
+        flag: queue
+        shorthand: q
+        description: "登录队列号"
+        
+      bindTel:
+        flag: tel
+        description: "绑定电话号码"
+        
+      bindType:
+        flag: type
+        default: 1
+        enum:
+          1: "分机"
+          2: "直线"
+          3: "软电话"
+          
+    output:
+      success: "座席 {cno} 登录成功"
+
+  Offline:
+    path: ["agent", "offline"]
+    aliases: ["off", "logout"]
+    group: agents
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+        
+    output:
+      success: "座席 {cno} 已下线"
+
+  Pause:
+    path: ["agent", "pause"]
+    aliases: ["busy"]
+    group: agents
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+        
+      pauseType:
+        flag: type
+        shorthand: t
+        default: 1
+        
+      description:
+        flag: reason
+        shorthand: r
+        description: "忙碌原因"
+        
+    output:
+      success: "座席 {cno} 已置忙"
+
+  Unpause:
+    path: ["agent", "ready"]
+    aliases: ["idle", "free"]
+    group: agents
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+        
+    output:
+      success: "座席 {cno} 已置闲"
+
+  # ==================== 队列管理 ====================
+  QueueStatus:
+    path: ["queue", "status"]
+    aliases: ["qs"]
+    group: queue
+    
+    parameters:
+      qnos:
+        flag: queue
+        shorthand: q
+        description: "队列号列表，逗号分隔"
+        transform: "split:,"
+        
+    output:
+      format: table
+      columns:
+        - key: qno
+          header: "队列"
+        - key: name
+          header: "名称"
+        - key: agentCount
+          header: "在线"
+          width: 6
+        - key: waitingCount
+          header: "等待"
+          width: 6
+        - key: avgWaitTime
+          header: "平均等待"
+          type: duration
+
+  ListQueues:
+    path: ["queue", "list"]
+    aliases: ["ql"]
+    group: queue
+    extends: ListCdrIbs  # 复用分页参数
+    
+    parameters:
+      offset:
+        default: 0
+      limit:
+        default: 20
+        
+  # ==================== 通话中控制 ====================
+  Unlink:
+    path: ["call", "hangup"]
+    aliases: ["hup", "end"]
+    group: call
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+        
+    output:
+      success: "通话已挂断"
+
+  Hold:
+    path: ["call", "hold"]
+    group: call
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+        
+  Unhold:
+    path: ["call", "unhold"]
+    group: call
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+
+  Transfer:
+    path: ["call", "transfer"]
+    aliases: ["xfer"]
+    group: call
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+        
+      transferType:
+        flag: type
+        shorthand: t
+        required: true
+        enum:
+          1: "座席"
+          2: "队列"
+          3: "外线"
+          
+      transferObject:
+        flag: target
+        required: true
+        description: "转接目标"

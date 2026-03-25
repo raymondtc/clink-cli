@@ -209,7 +209,7 @@ func parseRequestFile(path string, pathMap map[string]string) *APIInfo {
 	api := &APIInfo{
 		Name:        className,
 		Path:        "/" + path,
-		OperationID: camelToSnake(className),
+		OperationID: className, // 保持原始 Java 类名 (ListCdrIbs)
 	}
 
 	// 提取 HTTP Method
@@ -454,14 +454,3 @@ func buildOpenAPISpec(apis []APIInfo, schemas map[string]*Schema) *OpenAPISpec {
 	return spec
 }
 
-func camelToSnake(s string) string {
-	// 简单转换：ListCdrIbs → list_cdr_ibs
-	var result []rune
-	for i, r := range s {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			result = append(result, '_')
-		}
-		result = append(result, r)
-	}
-	return strings.ToLower(string(result))
-}

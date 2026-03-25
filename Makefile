@@ -1,15 +1,16 @@
-.PHONY: help sync-sdk extract-openapi generate openapi clean
+.PHONY: help sync-sdk extract-openapi generate openapi clean validate-config
 
 # Default target
 help:
 	@echo "Clink CLI - Makefile"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  sync-sdk       - Update SDK submodule to latest"
-	@echo "  extract-openapi - Extract OpenAPI spec from SDK"
-	@echo "  generate       - Generate Go code from OpenAPI"
-	@echo "  openapi        - Full pipeline: sync + extract"
-	@echo "  clean          - Remove generated files"
+	@echo "  sync-sdk         - Update SDK submodule to latest"
+	@echo "  extract-openapi  - Extract OpenAPI spec from SDK"
+	@echo "  validate-config  - Validate CLI config against OpenAPI"
+	@echo "  generate         - Generate Go code from OpenAPI"
+	@echo "  openapi          - Full pipeline: sync + extract"
+	@echo "  clean            - Remove generated files"
 
 # Update SDK submodule
 sync-sdk:
@@ -25,6 +26,13 @@ extract-openapi:
 	go run scripts/extract-openapi.go \
 		-sdk=./sdk/clink-sdk/clink-serversdk/src/main/java/com/tinet/clink \
 		-out=./openapi/openapi.json
+
+# Validate CLI config against OpenAPI
+validate-config:
+	@echo "=== Validating CLI config ==="
+	go run scripts/validate-config.go \
+		-openapi=./openapi/openapi.json \
+		-config=./config/cli.yaml
 
 # Generate code from OpenAPI
 generate:
