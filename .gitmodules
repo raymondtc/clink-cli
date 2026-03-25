@@ -1,0 +1,3 @@
+[submodule "sdk/clink-sdk"]
+	path = sdk/clink-sdk
+	url = https://github.com/ti-net/clink-sdk.git

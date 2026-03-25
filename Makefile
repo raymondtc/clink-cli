@@ -1,100 +1,53 @@
-# Generate code from OpenAPI spec using oapi-codegen
-OAPI_CODEGEN := $(shell go env GOPATH)/bin/oapi-codegen
+.PHONY: help sync-sdk extract-openapi generate openapi clean
 
-# Generator scripts
-CLI_GENERATOR := scripts/clink-generator/main.go
-API_GENERATOR := scripts/api-generator/main.go
-API_GENERATOR_V2 := scripts/api-generator-v2/main.go
-
-# Config files
-CONFIG_FILE := config/generator.yaml
-CONFIG_FILE_V2 := config/generator.v2.yaml
-OPENAPI_FILE := api/openapi.yaml
-
-# Output directories
-CMD_OUTPUT := cmd/clink
-API_OUTPUT := pkg/api
-
-.PHONY: all generate generate-cli generate-api generate-api-v2 generate-verify build test clean help
-
-# Default: show help
+# Default target
 help:
-	@echo "Clink CLI - Available targets:"
+	@echo "Clink CLI - Makefile"
 	@echo ""
-	@echo "  make generate        - Generate all code (CLI + API)"
-	@echo "  make generate-cli    - Generate CLI commands from config"
-	@echo "  make generate-api    - Generate API methods from config"
-	@echo "  make generate-api-v2 - Generate API methods using v2 generator"
-	@echo "  make generate-verify - Generate and verify v2 code compiles"
-	@echo "  make generate-types  - Generate types from OpenAPI using oapi-codegen"
-	@echo "  make build           - Build the CLI binary"
-	@echo "  make test            - Run tests"
-	@echo "  make clean           - Clean generated files"
-	@echo "  make add-endpoint    - Interactive endpoint addition"
-	@echo ""
+	@echo "Available targets:"
+	@echo "  sync-sdk       - Update SDK submodule to latest"
+	@echo "  extract-openapi - Extract OpenAPI spec from SDK"
+	@echo "  generate       - Generate Go code from OpenAPI"
+	@echo "  openapi        - Full pipeline: sync + extract"
+	@echo "  clean          - Remove generated files"
 
-# Generate all code
-all: generate build
+# Update SDK submodule
+sync-sdk:
+	@echo "=== Syncing SDK submodule ==="
+	git submodule update --init --recursive
+	git submodule update --remote
+	@echo "✓ SDK updated"
 
-# Generate all code (types + CLI + API)
-generate: generate-types generate-cli generate-api
-	@echo "✓ All code generated"
+# Extract OpenAPI from SDK
+extract-openapi:
+	@echo "=== Extracting OpenAPI from SDK ==="
+	@mkdir -p openapi
+	go run scripts/extract-openapi.go \
+		-sdk=./sdk/clink-sdk/clink-serversdk/src/main/java/com/tinet/clink \
+		-out=./openapi/openapi.json
 
-# Generate types from OpenAPI using oapi-codegen
-generate-types:
-	@echo "Generating types from OpenAPI..."
-	@test -f $(OAPI_CODEGEN) || go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
-	@mkdir -p pkg/generated
-	@$(OAPI_CODEGEN) -generate types,client -package generated $(OPENAPI_FILE) > pkg/generated/clink.gen.go
-	@echo "✓ Generated pkg/generated/clink.gen.go"
+# Generate code from OpenAPI
+generate:
+	@echo "=== Generating code from OpenAPI ==="
+	go run scripts/generate.go -spec=./openapi/openapi.json
 
-# Generate CLI commands from config
-generate-cli:
-	@echo "Generating CLI commands..."
-	@go run $(CLI_GENERATOR) $(CONFIG_FILE) $(OPENAPI_FILE) $(CMD_OUTPUT)
-	@echo "✓ CLI commands generated"
-
-# Generate API methods from config
-generate-api:
-	@echo "Generating API methods..."
-	@go run $(API_GENERATOR) $(CONFIG_FILE) $(OPENAPI_FILE) $(API_OUTPUT)/auto_generated.go
-	@echo "✓ API methods generated"
-
-# Generate API methods using v2 generator
-generate-api-v2:
-	@echo "Generating API methods (v2)..."
-	@go run $(API_GENERATOR_V2) $(CONFIG_FILE_V2) $(OPENAPI_FILE) $(API_OUTPUT)/auto_generated.go
-	@echo "✓ API methods generated (v2)"
-
-# Verify generated code compiles
-generate-verify: generate-api-v2
-	@echo "Verifying generated code..."
-	@go build ./pkg/api/...
-	@gofmt -l $(API_OUTPUT)/auto_generated.go | grep . && echo "❌ Format check failed" && exit 1 || echo "✓ Format check passed"
-	@echo "✓ Generated code verification passed"
-
-# Build CLI binary
-build:
-	@echo "Building clink CLI..."
-	@go build -o bin/clink ./cmd/clink
-	@echo "✓ Built bin/clink"
-
-# Run tests
-test:
-	@go test -v ./...
+# Full pipeline: sync SDK and extract OpenAPI
+openapi: sync-sdk extract-openapi
+	@echo "=== OpenAPI generation complete ==="
+	@echo "Output: ./openapi/openapi.json"
 
 # Clean generated files
 clean:
-	@echo "Cleaning generated files..."
-	@rm -f pkg/generated/*.go
-	@rm -f $(CMD_OUTPUT)/*_gen.go
-	@rm -f $(API_OUTPUT)/auto_generated.go
-	@rm -f bin/clink
+	@echo "=== Cleaning generated files ==="
+	rm -f openapi/openapi.json
 	@echo "✓ Cleaned"
 
-# Interactive endpoint addition
-add-endpoint:
-	@./scripts/clink-add-endpoint.sh
+# Development helpers
+dev-test:
+	@echo "=== Running tests ==="
+	go test ./...
 
-# Full rebuild: clean + generate + build
-rebuild: clean generate build
+dev-build:
+	@echo "=== Building binaries ==="
+	go build -o bin/clink ./cmd/clink
+	go build -o bin/clink-mcp ./cmd/clink-mcp
