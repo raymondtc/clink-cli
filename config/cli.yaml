@@ -401,3 +401,243 @@ commands:
         flag: target
         required: true
         description: "转接目标"
+
+  # ==================== 录音与满意度 (P1 补充) ====================
+  DescribeRecordFileUrl:
+    path: ["records", "url"]
+    aliases: ["url"]
+    group: records
+    description: "查询通话录音地址"
+    
+    arguments:
+      - name: call-id
+        from: mainUniqueId
+        required: true
+        description: "通话记录唯一标识(callId)"
+        
+    parameters:
+      mainUniqueId:
+        positional: true
+        argName: call-id
+        
+      recordSide:
+        flag: side
+        description: "录音侧：1-客户侧, 2-座席侧"
+        enum:
+          1: "客户侧"
+          2: "座席侧"
+          
+      timeout:
+        flag: timeout
+        default: 3600
+        description: "链接有效期(秒)，默认1小时"
+        
+      download:
+        flag: download
+        default: 1
+        description: "0-试听，1-下载"
+        enum:
+          0: "试听"
+          1: "下载"
+          
+    output:
+      format: json
+      success: "录音地址已获取"
+
+  DownloadRecordFile:
+    path: ["records", "download"]
+    aliases: ["dl"]
+    group: records
+    description: "下载通话录音文件"
+    
+    arguments:
+      - name: call-id
+        from: mainUniqueId
+        required: true
+        description: "通话记录唯一标识(callId)"
+        
+    parameters:
+      mainUniqueId:
+        positional: true
+        argName: call-id
+        
+      recordSide:
+        flag: side
+        description: "录音侧"
+        enum:
+          1: "客户侧"
+          2: "座席侧"
+          
+      output:
+        flag: output
+        shorthand: o
+        description: "保存路径(默认当前目录)"
+        default: "./"
+        
+    output:
+      success: "录音已下载到 {output}"
+
+  ListInvestigations:
+    path: ["records", "satisfaction"]
+    aliases: ["sat", "survey", "investigation"]
+    group: records
+    description: "查询满意度调查记录"
+    extends: ListCdrIbs
+    
+    parameters:
+      startTime:
+        flag: start
+        shorthand: s
+        default: "7d"
+        transform:
+          input: relative
+          output: timestamp
+          
+      endTime:
+        flag: end
+        shorthand: e
+        default: "now"
+        transform:
+          input: relative
+          output: timestamp
+          
+      customerNumber:
+        flag: phone
+        shorthand: p
+        
+      mainUniqueId:
+        flag: call
+        description: "通话记录ID"
+        
+      hiddenType:
+        hidden: true
+        
+    output:
+      format: table
+      columns:
+        - key: investigationId
+          header: "满意度ID"
+          width: 16
+          
+        - key: mainUniqueId
+          header: "通话ID"
+          width: 22
+          
+        - key: cno
+          header: "座席"
+          width: 8
+          
+        - key: investigationType
+          header: "评价方式"
+          map:
+            1: "按键评价"
+            2: "短信评价"
+            
+        - key: keys
+          header: "评分"
+          width: 6
+          
+        - key: investigationTime
+          header: "评价时间"
+          type: datetime
+          format: "01-02 15:04"
+
+  ListTodayCdrsByCno:
+    path: ["records", "today"]
+    aliases: ["td"]
+    group: records
+    description: "查询座席今日通话记录"
+    
+    parameters:
+      cno:
+        flag: agent
+        shorthand: a
+        required: true
+        description: "座席号"
+        
+      limit:
+        flag: limit
+        shorthand: n
+        default: 50
+        description: "查询条数(1-100)"
+        validate: {min: 1, max: 100}
+        
+      startTime:
+        hidden: true
+        
+    output:
+      format: table
+      columns:
+        - key: callId
+          header: "通话ID"
+          width: 22
+          
+        - key: customerNumber
+          header: "客户号码"
+          mask: true
+          
+        - key: callType
+          header: "类型"
+          map:
+            ib: "呼入"
+            ob: "外呼"
+            
+        - key: startTime
+          header: "时间"
+          type: datetime
+          format: "15:04:05"
+          
+        - key: duration
+          header: "时长"
+          type: duration
+
+  ListHistoryCdrs:
+    path: ["records", "history"]
+    aliases: ["his", "all"]
+    group: records
+    description: "查询历史通话记录"
+    extends: ListCdrIbs
+    
+    parameters:
+      startTime:
+        flag: start
+        shorthand: s
+        default: "7d"
+        transform:
+          input: relative
+          output: timestamp
+          
+      endTime:
+        flag: end
+        shorthand: e
+        default: "now"
+        transform:
+          input: relative
+          output: timestamp
+          
+      customerNumber:
+        flag: phone
+        shorthand: p
+        
+      cnos:
+        flag: agents
+        description: "座席号列表，逗号分隔"
+        transform: "split:,"
+        
+      callType:
+        flag: type
+        description: "呼叫类型"
+        enum:
+          ib: "呼入"
+          ob: "外呼"
+          
+      hotline:
+        flag: hotline
+        description: "热线号码"
+        
+      status:
+        flag: status
+        description: "接听状态"
+        
+      hiddenType:
+        hidden: true
