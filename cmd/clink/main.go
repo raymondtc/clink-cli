@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/raymondtc/clink-cli/pkg/api"
 	"github.com/raymondtc/clink-cli/pkg/client"
@@ -114,4 +117,64 @@ func derefInt(i *int) string {
 		return "-"
 	}
 	return fmt.Sprintf("%d", *i)
+}
+
+// parseRelativeTime parses relative time strings like "7d", "1h", "now", "today"
+// and returns Unix timestamp in seconds
+func parseRelativeTime(input string) (int64, error) {
+	input = strings.TrimSpace(strings.ToLower(input))
+	now := time.Now()
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+	now = now.In(loc)
+
+	switch input {
+	case "now":
+		return now.Unix(), nil
+	case "today":
+		startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+		return startOfDay.Unix(), nil
+	case "yesterday":
+		yesterday := now.AddDate(0, 0, -1)
+		startOfDay := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, loc)
+		return startOfDay.Unix(), nil
+	}
+
+	// Parse relative time like "7d", "1h", "30m"
+	if len(input) > 1 {
+		valueStr := input[:len(input)-1]
+		unit := input[len(input)-1]
+
+		value, err := strconv.Atoi(valueStr)
+		if err != nil {
+			// Try parsing as date format YYYY-MM-DD
+			t, err := time.ParseInLocation("2006-01-02", input, loc)
+			if err != nil {
+				return 0, fmt.Errorf("invalid time format: %s", input)
+			}
+			return t.Unix(), nil
+		}
+
+		switch unit {
+		case 'd':
+			return now.AddDate(0, 0, -value).Unix(), nil
+		case 'h':
+			return now.Add(time.Duration(-value) * time.Hour).Unix(), nil
+		case 'm':
+			return now.Add(time.Duration(-value) * time.Minute).Unix(), nil
+		default:
+			// Try parsing as date format
+			t, err := time.ParseInLocation("2006-01-02", input, loc)
+			if err != nil {
+				return 0, fmt.Errorf("invalid time format: %s", input)
+			}
+			return t.Unix(), nil
+		}
+	}
+
+	// Try parsing as date format YYYY-MM-DD
+	t, err := time.ParseInLocation("2006-01-02", input, loc)
+	if err != nil {
+		return 0, fmt.Errorf("invalid time format: %s", input)
+	}
+	return t.Unix(), nil
 }

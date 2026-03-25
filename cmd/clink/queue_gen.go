@@ -2,50 +2,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/spf13/cobra"
 )
-
-var listqueuesFlags struct {
-	StartTime string
-	EndTime string
-	CustomerNumber string
-	Cno string
-	Offset int
-	Limit int
-}
-
-var listqueuesCmd = &cobra.Command{
-	Use:   "list",
-	Short: "ListQueues",
-	Aliases: []string{"ql"},
-	RunE:  runListQueues,
-}
-
-func init() {
-	queueCmd.AddCommand(listqueuesCmd)
-
-	listqueuesCmd.Flags().IntVar(&listqueuesFlags.Offset, "offset", 0, "offset")
-	listqueuesCmd.Flags().IntVar(&listqueuesFlags.Limit, "limit", 20, "limit")
-	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.StartTime, "start", "s", "7d", "开始时间")
-	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.EndTime, "end", "e", "now", "结束时间")
-	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.CustomerNumber, "phone", "p", "", "客户号码")
-	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.Cno, "agent", "a", "", "座席号")
-}
-
-func runListQueues(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	fmt.Println("TODO: Implement API call")
-	return nil
-}
 
 var queuestatusFlags struct {
 	Qnos string
@@ -65,14 +26,67 @@ func init() {
 }
 
 func runQueueStatus(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
+	_ = fmt.Sprintf("")
 	api, err := createAPI()
 	if err != nil {
 		return err
 	}
 	_ = api
-	fmt.Println("TODO: Implement API call")
+	ctx := context.Background()
+	_ = ctx
+
+	queues, total, err := api.GetQueueStatus(ctx, queuestatusFlags.Qnos)
+	if err != nil {
+		return err
+	}
+
+	return renderList(queues, total)
+	return nil
+}
+
+var listqueuesFlags struct {
+	Offset int
+	StartTime string
+	EndTime string
+	CustomerNumber string
+	Cno string
+	Limit int
+}
+
+var listqueuesCmd = &cobra.Command{
+	Use:   "list",
+	Short: "ListQueues",
+	Aliases: []string{"ql"},
+	RunE:  runListQueues,
+}
+
+func init() {
+	queueCmd.AddCommand(listqueuesCmd)
+
+	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.StartTime, "start", "s", "7d", "开始时间")
+	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.EndTime, "end", "e", "now", "结束时间")
+	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.CustomerNumber, "phone", "p", "", "客户号码")
+	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.Cno, "agent", "a", "", "座席号")
+	listqueuesCmd.Flags().IntVar(&listqueuesFlags.Limit, "limit", 20, "limit")
+	listqueuesCmd.Flags().IntVar(&listqueuesFlags.Offset, "offset", 0, "offset")
+}
+
+func runListQueues(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	queues, total, err := api.ListQueues(ctx, 0, 10)
+	if err != nil {
+		return err
+	}
+
+	return renderList(queues, total)
 	return nil
 }
 

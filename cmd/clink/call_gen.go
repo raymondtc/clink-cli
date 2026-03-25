@@ -2,142 +2,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/spf13/cobra"
 )
-
-var transferFlags struct {
-	Cno string
-	TransferType string
-	TransferObject string
-}
-
-var transferCmd = &cobra.Command{
-	Use:   "transfer",
-	Short: "Transfer",
-	Aliases: []string{"xfer"},
-	RunE:  runTransfer,
-}
-
-func init() {
-	callCmd.AddCommand(transferCmd)
-
-	transferCmd.Flags().StringVarP(&transferFlags.TransferType, "type", "t", "", "transferType")
-	transferCmd.MarkFlagRequired("type")
-	transferCmd.Flags().StringVar(&transferFlags.TransferObject, "target", "", "transferObject")
-	transferCmd.MarkFlagRequired("target")
-	transferCmd.Flags().StringVarP(&transferFlags.Cno, "agent", "a", "", "座席号")
-	transferCmd.MarkFlagRequired("agent")
-}
-
-func runTransfer(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	fmt.Println("TODO: Implement API call")
-	return nil
-}
-
-var unholdFlags struct {
-	Cno string
-}
-
-var unholdCmd = &cobra.Command{
-	Use:   "unhold",
-	Short: "Unhold",
-	RunE:  runUnhold,
-}
-
-func init() {
-	callCmd.AddCommand(unholdCmd)
-
-	unholdCmd.Flags().StringVarP(&unholdFlags.Cno, "agent", "a", "", "座席号")
-	unholdCmd.MarkFlagRequired("agent")
-}
-
-func runUnhold(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	fmt.Println("TODO: Implement API call")
-	return nil
-}
-
-var webcallFlags struct {
-	CustomerNumber string
-	Clid string
-	IvrName string
-}
-
-var webcallCmd = &cobra.Command{
-	Use:   "call <phone>",
-	Short: "Webcall",
-	Aliases: []string{"c", "dial"},
-	Args:  cobra.ExactArgs(1),
-	RunE:  runWebcall,
-}
-
-func init() {
-	callCmd.AddCommand(webcallCmd)
-
-	webcallCmd.Flags().StringVar(&webcallFlags.CustomerNumber, "customernumber", "", "客户号码")
-	webcallCmd.Flags().StringVar(&webcallFlags.Clid, "caller", "", "clid")
-	webcallCmd.Flags().StringVar(&webcallFlags.IvrName, "ivr", "工作时间", "ivrName")
-}
-
-func runWebcall(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	// Dangerous operation confirmation
-	fmt.Printf("⚠️  确定要呼叫 {phone} 吗？ [y/N]: ")
-	fmt.Println("TODO: Implement API call")
-	return nil
-}
-
-var unlinkFlags struct {
-	Cno string
-}
-
-var unlinkCmd = &cobra.Command{
-	Use:   "hangup",
-	Short: "Unlink",
-	Aliases: []string{"hup", "end"},
-	RunE:  runUnlink,
-}
-
-func init() {
-	callCmd.AddCommand(unlinkCmd)
-
-	unlinkCmd.Flags().StringVarP(&unlinkFlags.Cno, "agent", "a", "", "座席号")
-	unlinkCmd.MarkFlagRequired("agent")
-}
-
-func runUnlink(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	fmt.Println("TODO: Implement API call")
-	return nil
-}
 
 var holdFlags struct {
 	Cno string
@@ -157,14 +26,18 @@ func init() {
 }
 
 func runHold(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
+	_ = fmt.Sprintf("")
 	api, err := createAPI()
 	if err != nil {
 		return err
 	}
 	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: Implement API call for Hold
 	fmt.Println("TODO: Implement API call")
+	return nil
 	return nil
 }
 
@@ -189,16 +62,185 @@ func init() {
 }
 
 func runCallout(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
+	_ = fmt.Sprintf("")
+	Phone := args[0]
+	_ = Phone
+	Agent := args[1]
+	_ = Agent
 	api, err := createAPI()
 	if err != nil {
 		return err
 	}
 	_ = api
-	// Dangerous operation confirmation
-	fmt.Printf("⚠️  确定要使用座席 {agent} 外呼 {phone} 吗？ [y/N]: ")
+	ctx := context.Background()
+	_ = ctx
+
+	fmt.Print("⚠️  确定要使用座席 {agent} 外呼 {phone} 吗？ [y/N]: ")
+	var confirm string
+	fmt.Scanln(&confirm)
+	if confirm != "y" && confirm != "Y" {
+		fmt.Println("已取消")
+		return nil
+	}
+
+	// TODO: Implement API call for Callout
 	fmt.Println("TODO: Implement API call")
+	return nil
+	return nil
+}
+
+var transferFlags struct {
+	TransferType string
+	TransferObject string
+	Cno string
+}
+
+var transferCmd = &cobra.Command{
+	Use:   "transfer",
+	Short: "Transfer",
+	Aliases: []string{"xfer"},
+	RunE:  runTransfer,
+}
+
+func init() {
+	callCmd.AddCommand(transferCmd)
+
+	transferCmd.Flags().StringVar(&transferFlags.TransferObject, "target", "", "transferObject")
+	transferCmd.MarkFlagRequired("target")
+	transferCmd.Flags().StringVarP(&transferFlags.Cno, "agent", "a", "", "座席号")
+	transferCmd.MarkFlagRequired("agent")
+	transferCmd.Flags().StringVarP(&transferFlags.TransferType, "type", "t", "", "transferType")
+	transferCmd.MarkFlagRequired("type")
+}
+
+func runTransfer(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: Implement API call for Transfer
+	fmt.Println("TODO: Implement API call")
+	return nil
+	return nil
+}
+
+var unlinkFlags struct {
+	Cno string
+}
+
+var unlinkCmd = &cobra.Command{
+	Use:   "hangup",
+	Short: "Unlink",
+	Aliases: []string{"hup", "end"},
+	RunE:  runUnlink,
+}
+
+func init() {
+	callCmd.AddCommand(unlinkCmd)
+
+	unlinkCmd.Flags().StringVarP(&unlinkFlags.Cno, "agent", "a", "", "座席号")
+	unlinkCmd.MarkFlagRequired("agent")
+}
+
+func runUnlink(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: Implement API call for Unlink
+	fmt.Println("TODO: Implement API call")
+	return nil
+	return nil
+}
+
+var unholdFlags struct {
+	Cno string
+}
+
+var unholdCmd = &cobra.Command{
+	Use:   "unhold",
+	Short: "Unhold",
+	RunE:  runUnhold,
+}
+
+func init() {
+	callCmd.AddCommand(unholdCmd)
+
+	unholdCmd.Flags().StringVarP(&unholdFlags.Cno, "agent", "a", "", "座席号")
+	unholdCmd.MarkFlagRequired("agent")
+}
+
+func runUnhold(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: Implement API call for Unhold
+	fmt.Println("TODO: Implement API call")
+	return nil
+	return nil
+}
+
+var webcallFlags struct {
+	CustomerNumber string
+	Clid string
+	IvrName string
+}
+
+var webcallCmd = &cobra.Command{
+	Use:   "call <phone>",
+	Short: "Webcall",
+	Aliases: []string{"c", "dial"},
+	Args:  cobra.ExactArgs(1),
+	RunE:  runWebcall,
+}
+
+func init() {
+	callCmd.AddCommand(webcallCmd)
+
+	webcallCmd.Flags().StringVar(&webcallFlags.Clid, "caller", "", "clid")
+	webcallCmd.Flags().StringVar(&webcallFlags.IvrName, "ivr", "工作时间", "ivrName")
+	webcallCmd.Flags().StringVar(&webcallFlags.CustomerNumber, "customernumber", "", "客户号码")
+}
+
+func runWebcall(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	Phone := args[0]
+	_ = Phone
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	fmt.Print("⚠️  确定要呼叫 {phone} 吗？ [y/N]: ")
+	var confirm string
+	fmt.Scanln(&confirm)
+	if confirm != "y" && confirm != "Y" {
+		fmt.Println("已取消")
+		return nil
+	}
+
+	// TODO: Implement API call for Webcall
+	fmt.Println("TODO: Implement API call")
+	return nil
 	return nil
 }
 

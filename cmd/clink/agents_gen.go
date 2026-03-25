@@ -2,45 +2,117 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"time"
 
 	"github.com/spf13/cobra"
 )
 
-var onlineFlags struct {
+var offlineFlags struct {
 	Cno string
-	Qno string
-	BindTel string
-	BindType int
 }
 
-var onlineCmd = &cobra.Command{
-	Use:   "online",
-	Short: "Online",
-	Aliases: []string{"on", "login"},
-	RunE:  runOnline,
+var offlineCmd = &cobra.Command{
+	Use:   "offline",
+	Short: "Offline",
+	Aliases: []string{"off", "logout"},
+	RunE:  runOffline,
 }
 
 func init() {
-	agentsCmd.AddCommand(onlineCmd)
+	agentsCmd.AddCommand(offlineCmd)
 
-	onlineCmd.Flags().StringVarP(&onlineFlags.Cno, "agent", "a", "", "座席号")
-	onlineCmd.MarkFlagRequired("agent")
-	onlineCmd.Flags().StringVarP(&onlineFlags.Qno, "queue", "q", "", "队列号")
-	onlineCmd.Flags().StringVar(&onlineFlags.BindTel, "tel", "", "bindTel")
-	onlineCmd.Flags().IntVar(&onlineFlags.BindType, "type", 1, "bindType")
+	offlineCmd.Flags().StringVarP(&offlineFlags.Cno, "agent", "a", "", "座席号")
+	offlineCmd.MarkFlagRequired("agent")
 }
 
-func runOnline(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
+func runOffline(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
 	api, err := createAPI()
 	if err != nil {
 		return err
 	}
 	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: Implement API call for Offline
 	fmt.Println("TODO: Implement API call")
+	return nil
+	return nil
+}
+
+var pauseFlags struct {
+	Description string
+	Cno string
+	PauseType int
+}
+
+var pauseCmd = &cobra.Command{
+	Use:   "pause",
+	Short: "Pause",
+	Aliases: []string{"busy"},
+	RunE:  runPause,
+}
+
+func init() {
+	agentsCmd.AddCommand(pauseCmd)
+
+	pauseCmd.Flags().StringVarP(&pauseFlags.Cno, "agent", "a", "", "座席号")
+	pauseCmd.MarkFlagRequired("agent")
+	pauseCmd.Flags().IntVarP(&pauseFlags.PauseType, "type", "t", 1, "pauseType")
+	pauseCmd.Flags().StringVarP(&pauseFlags.Description, "reason", "r", "", "description")
+}
+
+func runPause(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: Implement API call for Pause
+	fmt.Println("TODO: Implement API call")
+	return nil
+	return nil
+}
+
+var agentstatusFlags struct {
+	Cno string
+}
+
+var agentstatusCmd = &cobra.Command{
+	Use:   "agents",
+	Short: "AgentStatus",
+	Aliases: []string{"ag", "status"},
+	RunE:  runAgentStatus,
+}
+
+func init() {
+	agentsCmd.AddCommand(agentstatusCmd)
+
+	agentstatusCmd.Flags().StringVarP(&agentstatusFlags.Cno, "agent", "a", "", "座席号")
+}
+
+func runAgentStatus(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	agents, total, err := api.ListAgentStatus(ctx, agentstatusFlags.Cno)
+	if err != nil {
+		return err
+	}
+
+	return renderList(agents, total)
 	return nil
 }
 
@@ -63,107 +135,58 @@ func init() {
 }
 
 func runUnpause(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
+	_ = fmt.Sprintf("")
 	api, err := createAPI()
 	if err != nil {
 		return err
 	}
 	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: Implement API call for Unpause
 	fmt.Println("TODO: Implement API call")
+	return nil
 	return nil
 }
 
-var agentstatusFlags struct {
+var onlineFlags struct {
+	Qno string
+	BindTel string
+	BindType int
 	Cno string
 }
 
-var agentstatusCmd = &cobra.Command{
-	Use:   "agents",
-	Short: "AgentStatus",
-	Aliases: []string{"ag", "status"},
-	RunE:  runAgentStatus,
+var onlineCmd = &cobra.Command{
+	Use:   "online",
+	Short: "Online",
+	Aliases: []string{"on", "login"},
+	RunE:  runOnline,
 }
 
 func init() {
-	agentsCmd.AddCommand(agentstatusCmd)
+	agentsCmd.AddCommand(onlineCmd)
 
-	agentstatusCmd.Flags().StringVarP(&agentstatusFlags.Cno, "agent", "a", "", "座席号")
+	onlineCmd.Flags().IntVar(&onlineFlags.BindType, "type", 1, "bindType")
+	onlineCmd.Flags().StringVarP(&onlineFlags.Cno, "agent", "a", "", "座席号")
+	onlineCmd.MarkFlagRequired("agent")
+	onlineCmd.Flags().StringVarP(&onlineFlags.Qno, "queue", "q", "", "队列号")
+	onlineCmd.Flags().StringVar(&onlineFlags.BindTel, "tel", "", "bindTel")
 }
 
-func runAgentStatus(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
+func runOnline(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
 	api, err := createAPI()
 	if err != nil {
 		return err
 	}
 	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: Implement API call for Online
 	fmt.Println("TODO: Implement API call")
 	return nil
-}
-
-var offlineFlags struct {
-	Cno string
-}
-
-var offlineCmd = &cobra.Command{
-	Use:   "offline",
-	Short: "Offline",
-	Aliases: []string{"off", "logout"},
-	RunE:  runOffline,
-}
-
-func init() {
-	agentsCmd.AddCommand(offlineCmd)
-
-	offlineCmd.Flags().StringVarP(&offlineFlags.Cno, "agent", "a", "", "座席号")
-	offlineCmd.MarkFlagRequired("agent")
-}
-
-func runOffline(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	fmt.Println("TODO: Implement API call")
-	return nil
-}
-
-var pauseFlags struct {
-	Cno string
-	PauseType int
-	Description string
-}
-
-var pauseCmd = &cobra.Command{
-	Use:   "pause",
-	Short: "Pause",
-	Aliases: []string{"busy"},
-	RunE:  runPause,
-}
-
-func init() {
-	agentsCmd.AddCommand(pauseCmd)
-
-	pauseCmd.Flags().StringVarP(&pauseFlags.Cno, "agent", "a", "", "座席号")
-	pauseCmd.MarkFlagRequired("agent")
-	pauseCmd.Flags().IntVarP(&pauseFlags.PauseType, "type", "t", 1, "pauseType")
-	pauseCmd.Flags().StringVarP(&pauseFlags.Description, "reason", "r", "", "description")
-}
-
-func runPause(cmd *cobra.Command, args []string) error {
-	fmt.Sprintf("")
-	_ = time.Now()
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	fmt.Println("TODO: Implement API call")
 	return nil
 }
 
