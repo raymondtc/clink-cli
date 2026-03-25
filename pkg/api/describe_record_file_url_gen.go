@@ -12,7 +12,7 @@ import (
 // DescribeRecordFileUrl - 查询通话录音地址
 func (a *GeneratedAPI) DescribeRecordFileUrl(ctx context.Context, callId string, recordSide int, timeout int, download int) (map[string]interface{}, error) {
 	params := &generated.DescribeRecordFileUrlParams{}
-	// params.MainUniqueId = callId
+	// 注意：需要根据实际生成的类型字段调整
 	_ = callId
 	_ = recordSide
 	_ = timeout
@@ -29,7 +29,7 @@ func (a *GeneratedAPI) DescribeRecordFileUrl(ctx context.Context, callId string,
 
 	// 返回包含 URL 的 map
 	result := map[string]interface{}{
-		"url": resp.JSON200,
+		"data": resp.JSON200,
 	}
 	return result, nil
 }

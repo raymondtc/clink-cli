@@ -9,11 +9,11 @@ import (
 )
 
 var listinvestigationsFlags struct {
-	MainUniqueId string
 	StartTime string
 	EndTime string
 	CustomerNumber string
 	Cno string
+	MainUniqueId string
 }
 
 var listinvestigationsCmd = &cobra.Command{
@@ -26,11 +26,11 @@ var listinvestigationsCmd = &cobra.Command{
 func init() {
 	recordsCmd.AddCommand(listinvestigationsCmd)
 
-	listinvestigationsCmd.Flags().StringVarP(&listinvestigationsFlags.StartTime, "start", "s", "7d", "开始时间")
 	listinvestigationsCmd.Flags().StringVarP(&listinvestigationsFlags.EndTime, "end", "e", "now", "结束时间")
 	listinvestigationsCmd.Flags().StringVarP(&listinvestigationsFlags.CustomerNumber, "phone", "p", "", "客户号码")
 	listinvestigationsCmd.Flags().StringVarP(&listinvestigationsFlags.Cno, "agent", "a", "", "座席号")
 	listinvestigationsCmd.Flags().StringVar(&listinvestigationsFlags.MainUniqueId, "call", "", "mainUniqueId")
+	listinvestigationsCmd.Flags().StringVarP(&listinvestigationsFlags.StartTime, "start", "s", "7d", "开始时间")
 }
 
 func runListInvestigations(cmd *cobra.Command, args []string) error {
@@ -45,53 +45,6 @@ func runListInvestigations(cmd *cobra.Command, args []string) error {
 
 	// TODO: API not yet implemented: ListInvestigations
 	fmt.Println("API not yet implemented: ListInvestigations")
-	return nil
-	return nil
-}
-
-var listhistorycdrsFlags struct {
-	StartTime string
-	CallType string
-	Hotline string
-	CustomerNumber string
-	Cno string
-	Cnos string
-	Status string
-	EndTime string
-}
-
-var listhistorycdrsCmd = &cobra.Command{
-	Use:   "history",
-	Short: "ListHistoryCdrs",
-	Aliases: []string{"his", "all"},
-	RunE:  runListHistoryCdrs,
-}
-
-func init() {
-	recordsCmd.AddCommand(listhistorycdrsCmd)
-
-	listhistorycdrsCmd.Flags().StringVarP(&listhistorycdrsFlags.EndTime, "end", "e", "now", "结束时间")
-	listhistorycdrsCmd.Flags().StringVarP(&listhistorycdrsFlags.StartTime, "start", "s", "7d", "开始时间")
-	listhistorycdrsCmd.Flags().StringVar(&listhistorycdrsFlags.CallType, "type", "", "callType")
-	listhistorycdrsCmd.Flags().StringVar(&listhistorycdrsFlags.Hotline, "hotline", "", "hotline")
-	listhistorycdrsCmd.Flags().StringVarP(&listhistorycdrsFlags.CustomerNumber, "phone", "p", "", "客户号码")
-	listhistorycdrsCmd.Flags().StringVarP(&listhistorycdrsFlags.Cno, "agent", "a", "", "座席号")
-	listhistorycdrsCmd.Flags().StringVar(&listhistorycdrsFlags.Cnos, "agents", "", "cnos")
-	listhistorycdrsCmd.Flags().StringVar(&listhistorycdrsFlags.Status, "status", "", "status")
-}
-
-func runListHistoryCdrs(cmd *cobra.Command, args []string) error {
-	_ = fmt.Sprintf("")
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	ctx := context.Background()
-	_ = ctx
-
-	// TODO: API not yet implemented: ListHistoryCdrs
-	fmt.Println("API not yet implemented: ListHistoryCdrs")
 	return nil
 	return nil
 }
@@ -113,10 +66,10 @@ var listcdribsCmd = &cobra.Command{
 func init() {
 	recordsCmd.AddCommand(listcdribsCmd)
 
-	listcdribsCmd.Flags().StringVarP(&listcdribsFlags.CustomerNumber, "phone", "p", "", "客户号码")
 	listcdribsCmd.Flags().StringVarP(&listcdribsFlags.Cno, "agent", "a", "", "座席号")
 	listcdribsCmd.Flags().StringVarP(&listcdribsFlags.StartTime, "start", "s", "7d", "开始时间")
 	listcdribsCmd.Flags().StringVarP(&listcdribsFlags.EndTime, "end", "e", "now", "结束时间")
+	listcdribsCmd.Flags().StringVarP(&listcdribsFlags.CustomerNumber, "phone", "p", "", "客户号码")
 }
 
 func runListCdrIbs(cmd *cobra.Command, args []string) error {
@@ -148,11 +101,100 @@ func runListCdrIbs(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+var listcdrobsFlags struct {
+	StartTime string
+	CallType string
+	EndTime string
+	CustomerNumber string
+	Cno string
+}
+
+var listcdrobsCmd = &cobra.Command{
+	Use:   "outbound",
+	Short: "ListCdrObs",
+	Aliases: []string{"ob", "out"},
+	RunE:  runListCdrObs,
+}
+
+func init() {
+	recordsCmd.AddCommand(listcdrobsCmd)
+
+	listcdrobsCmd.Flags().StringVarP(&listcdrobsFlags.CustomerNumber, "phone", "p", "", "客户号码")
+	listcdrobsCmd.Flags().StringVarP(&listcdrobsFlags.Cno, "agent", "a", "", "座席号")
+	listcdrobsCmd.Flags().StringVarP(&listcdrobsFlags.StartTime, "start", "s", "7d", "开始时间")
+	listcdrobsCmd.Flags().StringVar(&listcdrobsFlags.CallType, "type", "", "callType")
+	listcdrobsCmd.Flags().StringVarP(&listcdrobsFlags.EndTime, "end", "e", "now", "结束时间")
+}
+
+func runListCdrObs(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	startTime, err := parseRelativeTime(listcdrobsFlags.StartTime)
+	if err != nil {
+		return fmt.Errorf("invalid start time: %w", err)
+	}
+	endTime, err := parseRelativeTime(listcdrobsFlags.EndTime)
+	if err != nil {
+		return fmt.Errorf("invalid end time: %w", err)
+	}
+
+	records, total, err := api.ListCdrObs(ctx, startTime, endTime, 10, 0, listcdrobsFlags.CustomerNumber, listcdrobsFlags.Cno)
+	if err != nil {
+		return err
+	}
+
+	return renderList(records, total)
+	return nil
+}
+
+var listtodaycdrsbycnoFlags struct {
+	Cno string
+	Limit int
+}
+
+var listtodaycdrsbycnoCmd = &cobra.Command{
+	Use:   "today",
+	Short: "ListTodayCdrsByCno",
+	Aliases: []string{"td"},
+	RunE:  runListTodayCdrsByCno,
+}
+
+func init() {
+	recordsCmd.AddCommand(listtodaycdrsbycnoCmd)
+
+	listtodaycdrsbycnoCmd.Flags().StringVarP(&listtodaycdrsbycnoFlags.Cno, "agent", "a", "", "座席号")
+	listtodaycdrsbycnoCmd.MarkFlagRequired("agent")
+	listtodaycdrsbycnoCmd.Flags().IntVarP(&listtodaycdrsbycnoFlags.Limit, "limit", "n", 50, "limit")
+}
+
+func runListTodayCdrsByCno(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: API not yet implemented: ListTodayCdrsByCno
+	fmt.Println("API not yet implemented: ListTodayCdrsByCno")
+	return nil
+	return nil
+}
+
 var describerecordfileurlFlags struct {
-	Timeout int
-	Download int
 	MainUniqueId string
 	RecordSide string
+	Timeout int
+	Download int
 }
 
 var describerecordfileurlCmd = &cobra.Command{
@@ -166,10 +208,10 @@ var describerecordfileurlCmd = &cobra.Command{
 func init() {
 	recordsCmd.AddCommand(describerecordfileurlCmd)
 
-	describerecordfileurlCmd.Flags().IntVar(&describerecordfileurlFlags.Timeout, "timeout", 3600, "timeout")
-	describerecordfileurlCmd.Flags().IntVar(&describerecordfileurlFlags.Download, "download", 1, "download")
 	describerecordfileurlCmd.Flags().StringVar(&describerecordfileurlFlags.MainUniqueId, "mainuniqueid", "", "mainUniqueId")
 	describerecordfileurlCmd.Flags().StringVar(&describerecordfileurlFlags.RecordSide, "side", "", "recordSide")
+	describerecordfileurlCmd.Flags().IntVar(&describerecordfileurlFlags.Timeout, "timeout", 3600, "timeout")
+	describerecordfileurlCmd.Flags().IntVar(&describerecordfileurlFlags.Download, "download", 1, "download")
 }
 
 func runDescribeRecordFileUrl(cmd *cobra.Command, args []string) error {
@@ -196,6 +238,53 @@ func runDescribeRecordFileUrl(cmd *cobra.Command, args []string) error {
 	}
 
 	return renderOutput(result)
+	return nil
+}
+
+var listhistorycdrsFlags struct {
+	Status string
+	Cnos string
+	StartTime string
+	EndTime string
+	CustomerNumber string
+	Cno string
+	Hotline string
+	CallType string
+}
+
+var listhistorycdrsCmd = &cobra.Command{
+	Use:   "history",
+	Short: "ListHistoryCdrs",
+	Aliases: []string{"his", "all"},
+	RunE:  runListHistoryCdrs,
+}
+
+func init() {
+	recordsCmd.AddCommand(listhistorycdrsCmd)
+
+	listhistorycdrsCmd.Flags().StringVar(&listhistorycdrsFlags.Status, "status", "", "status")
+	listhistorycdrsCmd.Flags().StringVar(&listhistorycdrsFlags.Cnos, "agents", "", "cnos")
+	listhistorycdrsCmd.Flags().StringVarP(&listhistorycdrsFlags.StartTime, "start", "s", "7d", "开始时间")
+	listhistorycdrsCmd.Flags().StringVarP(&listhistorycdrsFlags.EndTime, "end", "e", "now", "结束时间")
+	listhistorycdrsCmd.Flags().StringVarP(&listhistorycdrsFlags.CustomerNumber, "phone", "p", "", "客户号码")
+	listhistorycdrsCmd.Flags().StringVarP(&listhistorycdrsFlags.Cno, "agent", "a", "", "座席号")
+	listhistorycdrsCmd.Flags().StringVar(&listhistorycdrsFlags.Hotline, "hotline", "", "hotline")
+	listhistorycdrsCmd.Flags().StringVar(&listhistorycdrsFlags.CallType, "type", "", "callType")
+}
+
+func runListHistoryCdrs(cmd *cobra.Command, args []string) error {
+	_ = fmt.Sprintf("")
+	api, err := createAPI()
+	if err != nil {
+		return err
+	}
+	_ = api
+	ctx := context.Background()
+	_ = ctx
+
+	// TODO: API not yet implemented: ListHistoryCdrs
+	fmt.Println("API not yet implemented: ListHistoryCdrs")
+	return nil
 	return nil
 }
 
@@ -236,95 +325,6 @@ func runDownloadRecordFile(cmd *cobra.Command, args []string) error {
 	// TODO: API not yet implemented: DownloadRecordFile
 	fmt.Println("API not yet implemented: DownloadRecordFile")
 	return nil
-	return nil
-}
-
-var listtodaycdrsbycnoFlags struct {
-	Limit int
-	Cno string
-}
-
-var listtodaycdrsbycnoCmd = &cobra.Command{
-	Use:   "today",
-	Short: "ListTodayCdrsByCno",
-	Aliases: []string{"td"},
-	RunE:  runListTodayCdrsByCno,
-}
-
-func init() {
-	recordsCmd.AddCommand(listtodaycdrsbycnoCmd)
-
-	listtodaycdrsbycnoCmd.Flags().StringVarP(&listtodaycdrsbycnoFlags.Cno, "agent", "a", "", "座席号")
-	listtodaycdrsbycnoCmd.MarkFlagRequired("agent")
-	listtodaycdrsbycnoCmd.Flags().IntVarP(&listtodaycdrsbycnoFlags.Limit, "limit", "n", 50, "limit")
-}
-
-func runListTodayCdrsByCno(cmd *cobra.Command, args []string) error {
-	_ = fmt.Sprintf("")
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	ctx := context.Background()
-	_ = ctx
-
-	// TODO: API not yet implemented: ListTodayCdrsByCno
-	fmt.Println("API not yet implemented: ListTodayCdrsByCno")
-	return nil
-	return nil
-}
-
-var listcdrobsFlags struct {
-	CustomerNumber string
-	CallType string
-	Cno string
-	StartTime string
-	EndTime string
-}
-
-var listcdrobsCmd = &cobra.Command{
-	Use:   "outbound",
-	Short: "ListCdrObs",
-	Aliases: []string{"ob", "out"},
-	RunE:  runListCdrObs,
-}
-
-func init() {
-	recordsCmd.AddCommand(listcdrobsCmd)
-
-	listcdrobsCmd.Flags().StringVarP(&listcdrobsFlags.Cno, "agent", "a", "", "座席号")
-	listcdrobsCmd.Flags().StringVarP(&listcdrobsFlags.StartTime, "start", "s", "7d", "开始时间")
-	listcdrobsCmd.Flags().StringVarP(&listcdrobsFlags.EndTime, "end", "e", "now", "结束时间")
-	listcdrobsCmd.Flags().StringVarP(&listcdrobsFlags.CustomerNumber, "phone", "p", "", "客户号码")
-	listcdrobsCmd.Flags().StringVar(&listcdrobsFlags.CallType, "type", "", "callType")
-}
-
-func runListCdrObs(cmd *cobra.Command, args []string) error {
-	_ = fmt.Sprintf("")
-	api, err := createAPI()
-	if err != nil {
-		return err
-	}
-	_ = api
-	ctx := context.Background()
-	_ = ctx
-
-	startTime, err := parseRelativeTime(listcdrobsFlags.StartTime)
-	if err != nil {
-		return fmt.Errorf("invalid start time: %w", err)
-	}
-	endTime, err := parseRelativeTime(listcdrobsFlags.EndTime)
-	if err != nil {
-		return fmt.Errorf("invalid end time: %w", err)
-	}
-
-	records, total, err := api.ListCdrObs(ctx, startTime, endTime, 10, 0, listcdrobsFlags.CustomerNumber, listcdrobsFlags.Cno)
-	if err != nil {
-		return err
-	}
-
-	return renderList(records, total)
 	return nil
 }
 

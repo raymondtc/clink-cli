@@ -45,11 +45,11 @@ func runQueueStatus(cmd *cobra.Command, args []string) error {
 }
 
 var listqueuesFlags struct {
-	Offset int
 	StartTime string
 	EndTime string
 	CustomerNumber string
 	Cno string
+	Offset int
 	Limit int
 }
 
@@ -63,12 +63,12 @@ var listqueuesCmd = &cobra.Command{
 func init() {
 	queueCmd.AddCommand(listqueuesCmd)
 
+	listqueuesCmd.Flags().IntVar(&listqueuesFlags.Offset, "offset", 0, "offset")
+	listqueuesCmd.Flags().IntVar(&listqueuesFlags.Limit, "limit", 20, "limit")
 	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.StartTime, "start", "s", "7d", "开始时间")
 	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.EndTime, "end", "e", "now", "结束时间")
 	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.CustomerNumber, "phone", "p", "", "客户号码")
 	listqueuesCmd.Flags().StringVarP(&listqueuesFlags.Cno, "agent", "a", "", "座席号")
-	listqueuesCmd.Flags().IntVar(&listqueuesFlags.Limit, "limit", 20, "limit")
-	listqueuesCmd.Flags().IntVar(&listqueuesFlags.Offset, "offset", 0, "offset")
 }
 
 func runListQueues(cmd *cobra.Command, args []string) error {
