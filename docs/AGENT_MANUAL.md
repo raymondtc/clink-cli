@@ -71,19 +71,38 @@ clink records outbound --start 2024-03-20 --phone 13900139000
 # 特定号码外呼记录
 ```
 
-### 下载通话录音
+### 查询当日通话记录
 
-**Agent 意图**: "下载今天的通话录音"
+**Agent 意图**: "今天座席 1001 接了多少电话"
 
 ```bash
-# 获取录音下载链接
-clink records download <call-id>
+clink records today --agent 1001
+# 座席今日所有通话
 
-# 直接下载保存
-clink records download <call-id> --save ./recordings/
+clink records today --agent 1001 --limit 100
+# 查询最近 100 条
+```
 
-# 批量下载
-clink records inbound --start today | jq -r '.[].callId' | xargs -I {} clink records download {} --save ./
+**输出示例：**
+```
+通话ID                客户号码     类型  时间       时长
+20240325120001-abc123 138****8000  呼入  09:32:15   03:45
+20240325120002-def456 139****9000  外呼  10:15:30   01:20
+```
+
+### 查询历史通话记录
+
+**Agent 意图**: "查一下过去一个月的通话记录"
+
+```bash
+clink records history --start 30d
+# 最近 30 天所有通话记录
+
+clink records history --agents 1001,1002,1003 --type ib
+# 多个座席的呼入记录
+
+clink records history --phone 13800138000 --start 2024-01-01 --end 2024-03-25
+# 特定号码的历史记录
 ```
 
 ### 查询满意度记录
@@ -96,7 +115,66 @@ clink records satisfaction --start 2024-03-01
 
 clink records satisfaction --agent 1001
 # 特定座席的满意度
+
+clink records satisfaction --call 20240325120001-abc123
+# 特定通话的满意度
 ```
+
+**输出示例：**
+```
+满意度ID       通话ID                座席   评价方式   评分  评价时间
+SAT-12345678   20240325120001-abc123 1001   按键评价   5     03-25 09:35
+SAT-12345679   20240325120002-def456 1002   短信评价   4     03-25 10:18
+```
+
+### 获取录音下载链接
+
+**Agent 意图**: "获取通话录音的下载链接"
+
+```bash
+clink records url 20240325120001-abc123
+# 获取录音 URL
+
+clink records url 20240325120001-abc123 --side 1
+# 客户侧录音
+
+clink records url 20240325120001-abc123 --side 2 --timeout 7200
+# 座席侧录音，链接有效期 2 小时
+
+clink records url 20240325120001-abc123 --download 0
+# 试听链接（非下载）
+```
+
+**输出示例：**
+```json
+{
+  "url": "https://record.clink.cn/xxx/record.mp3?token=abc123",
+  "expireAt": "2024-03-25T12:00:00Z"
+}
+```
+
+### 下载通话录音
+
+**Agent 意图**: "下载今天的通话录音"
+
+```bash
+# 下载到当前目录
+clink records download 20240325120001-abc123
+
+# 指定保存路径
+clink records download 20240325120001-abc123 --output ./recordings/
+
+# 下载座席侧录音
+clink records download 20240325120001-abc123 --side 2 --output ./agent-records/
+
+# 批量下载（结合 records today 或 inbound）
+clink records today --agent 1001 -o json | jq -r '.[].callId' | xargs -I {} clink records download {} --output ./today/
+```
+
+**常用场景对话：**
+- "下载昨天的所有录音" → `clink records history --start 1d --end now -o json | jq -r '.[].callId' | xargs -I {} clink records download {}`
+- "获取客户侧录音链接" → `clink records url <call-id> --side 1`
+- "查一下这通电话的满意度" → `clink records satisfaction --call <call-id>`
 
 ---
 
@@ -390,8 +468,12 @@ clink sms templates
 | "挂断座席 1001 的电话" | `clink call hangup --agent 1001` |
 | "看一下队列情况" | `clink queue status` |
 | "导出本月数据" | `clink records inbound --start 2024-03-01 --output json > data.json` |
-| "下载录音" | `clink records download <call-id> --save` |
+| "下载录音" | `clink records download <call-id> --output ./` |
+| "获取录音链接" | `clink records url <call-id>` |
 | "满意度怎么样" | `clink records satisfaction --start 2024-03-01` |
+| "今天接了多少电话" | `clink records today --agent 1001` |
+| "查一下历史记录" | `clink records history --start 30d` |
+| "这通录音的客户侧" | `clink records url <call-id> --side 1` |
 
 ---
 

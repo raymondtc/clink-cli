@@ -43,11 +43,11 @@
 | 13 | ✅ Hold | `call hold` | P0 | 保持通话 |
 | 14 | ✅ Unhold | `call unhold` | P0 | 恢复通话 |
 | 15 | ✅ Transfer | `call transfer` | P0 | 转接电话 |
-| 16 | DescribeRecordFileUrl | `records download` | P1 | 录音下载链接 |
-| 17 | DownloadRecordFile | `records download --save` | P1 | 直接下载录音 |
-| 18 | ListInvestigations | `records satisfaction` | P1 | 满意度记录 |
-| 19 | ListTodayCdrsByCno | `records today` | P1 | 当日通话记录 |
-| 20 | ListHistoryCdrs | `records history` | P1 | 历史通话记录 |
+| 16 | ✅ DescribeRecordFileUrl | `records url <call-id>` | P1 | 录音下载链接 |
+| 17 | ✅ DownloadRecordFile | `records download <call-id>` | P1 | 直接下载录音 |
+| 18 | ✅ ListInvestigations | `records satisfaction` | P1 | 满意度记录 |
+| 19 | ✅ ListTodayCdrsByCno | `records today` | P1 | 当日通话记录 |
+| 20 | ✅ ListHistoryCdrs | `records history` | P1 | 历史通话记录 |
 
 **P1 完成标准**:
 - [ ] 20 个核心 API 全部可用
@@ -246,10 +246,10 @@ make validate-config && git add -A && git commit -m "feat: add xxx command"
 
 | 批次 | 计划 | 已完成 | 进度 |
 |------|------|--------|------|
-| P1 核心功能 | 20 | 15 | 75% ⏳ |
+| P1 核心功能 | 20 | 20 | **100% ✅** |
 | P2 扩展功能 | 29 | 0 | 0% ⏸️ |
 | P3 高级功能 | 33 | 0 | 0% ⏸️ |
-| **总计** | **82** | **15** | **18%** |
+| **总计** | **82** | **20** | **24%** |
 
 ---
 
