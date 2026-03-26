@@ -36,8 +36,10 @@ validate-config:
 
 # Generate code from OpenAPI
 generate:
-	@echo "=== Generating code from OpenAPI ==="
-	go run scripts/generate.go -spec=./openapi/openapi.json
+	@echo "=== Generating API code ==="
+	go run scripts/api-generator-v2/main.go config/generator.v2.yaml api/openapi.yaml pkg/api/auto_generated.go
+	@echo "=== Generating CLI code ==="
+	go run scripts/clink-generator/main.go config/generator.yaml api/openapi.yaml cmd/clink
 
 # Full pipeline: sync SDK and extract OpenAPI
 openapi: sync-sdk extract-openapi
