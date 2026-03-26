@@ -30,7 +30,7 @@ extract-openapi:
 # Validate CLI config against OpenAPI
 validate-config:
 	@echo "=== Validating CLI config ==="
-	go run scripts/validate-config.go \
+	go run scripts/validate-config/main.go \
 		-openapi=./openapi/openapi.json \
 		-config=./config/cli.yaml
 

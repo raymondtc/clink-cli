@@ -11,18 +11,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type OpenAPISpec struct {
-	Paths map[string]PathItem `json:"paths"`
+// 使用 extract-openapi.go 中定义的 OpenAPISpec 类型
+type ValidateOpenAPISpec struct {
+	Paths map[string]ValidatePathItem `json:"paths"`
 }
 
-type PathItem map[string]*Operation
+type ValidatePathItem map[string]*ValidateOperation
 
-type Operation struct {
-	OperationID string      `json:"operationId"`
-	Parameters  []Parameter `json:"parameters"`
+type ValidateOperation struct {
+	OperationID string              `json:"operationId"`
+	Parameters  []ValidateParameter `json:"parameters"`
 }
 
-type Parameter struct {
+type ValidateParameter struct {
 	Name     string `json:"name"`
 	In       string `json:"in"`
 	Required bool   `json:"required"`
@@ -157,19 +158,19 @@ func main() {
 	}
 }
 
-func loadOpenAPI(path string) (*OpenAPISpec, error) {
+func loadOpenAPI(path string) (*ValidateOpenAPISpec, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	var spec OpenAPISpec
+	var spec ValidateOpenAPISpec
 	if err := json.Unmarshal(data, &spec); err != nil {
 		return nil, err
 	}
 	return &spec, nil
 }
 
-func extractOperationIds(spec *OpenAPISpec) map[string]bool {
+func extractOperationIds(spec *ValidateOpenAPISpec) map[string]bool {
 	ids := make(map[string]bool)
 	for _, pathItem := range spec.Paths {
 		for _, op := range pathItem {
