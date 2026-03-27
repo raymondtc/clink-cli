@@ -224,6 +224,37 @@ endpoints:
       format: "table"
 
   # ==================== 呼叫控制 ====================
+  callout:
+    command: ["call", "dial"]
+    description: "发起座席外呼"
+    use: "dial <phone>"
+    operationId: "callout"
+    
+    arguments:
+      - name: phone
+        description: "客户电话号码"
+        required: true
+    
+    parameters:
+      fields:
+        - name: customerNumber
+          source: arg
+          argName: phone
+          required: true
+        - name: cno
+          flag: agent
+          shorthand: a
+          type: string
+          description: "座席号"
+          required: true
+        - name: clid
+          flag: clid
+          type: string
+          description: "外显号码"
+    
+    response:
+      type: "simple"
+
   webcall:
     command: ["call", "webcall"]
     description: "发起 WebCall 外呼"

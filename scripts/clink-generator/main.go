@@ -449,13 +449,15 @@ func (g *Generator) formatDefault(def, t string) string {
 func (g *Generator) buildAPICall(ep EndpointInfo, cmdName string) string {
 	switch ep.OperationID {
 	case "listCdrIbs":
-		return fmt.Sprintf("api.GetInboundRecords(ctx, %sFlags.start, %sFlags.end, %sFlags.phone, %sFlags.agent, %sFlags.offset/%sFlags.limit+1, %sFlags.limit)", cmdName, cmdName, cmdName, cmdName, cmdName, cmdName, cmdName)
+		return fmt.Sprintf("api.ListCdrIbs(ctx, startTime, endTime, %sFlags.offset, %sFlags.limit, %sFlags.phone, %sFlags.agent)", cmdName, cmdName, cmdName, cmdName)
 	case "listCdrObs":
-		return fmt.Sprintf("api.GetOutboundRecords(ctx, %sFlags.start, %sFlags.end, %sFlags.phone, %sFlags.agent, %sFlags.offset/%sFlags.limit+1, %sFlags.limit)", cmdName, cmdName, cmdName, cmdName, cmdName, cmdName, cmdName)
+		return fmt.Sprintf("api.ListCdrObs(ctx, startTime, endTime, %sFlags.limit, %sFlags.offset, %sFlags.phone, %sFlags.agent)", cmdName, cmdName, cmdName, cmdName)
 	case "listAgentStatus":
-		return fmt.Sprintf("api.GetAgentStatus(ctx, %sFlags.agent)", cmdName)
+		return fmt.Sprintf("api.ListAgentStatus(ctx, %sFlags.agent)", cmdName)
+	case "callout":
+		return fmt.Sprintf("api.Callout(ctx, phone, %sFlags.agent, %sFlags.clid)", cmdName, cmdName)
 	case "webcall":
-		return fmt.Sprintf("api.Webcall(ctx, phone, %sFlags.clid, %sFlags.ivr, nil)", cmdName, cmdName)
+		return fmt.Sprintf("api.Webcall(ctx, phone, %sFlags.clid, %sFlags.ivr, %sFlags.requestId)", cmdName, cmdName, cmdName)
 	case "online":
 		return fmt.Sprintf("api.Online(ctx, %sFlags.agent, %sFlags.queue, %sFlags.tel, %sFlags.bindType)", cmdName, cmdName, cmdName, cmdName)
 	case "offline":
@@ -465,7 +467,7 @@ func (g *Generator) buildAPICall(ep EndpointInfo, cmdName string) string {
 	case "unpause":
 		return fmt.Sprintf("api.Unpause(ctx, %sFlags.agent)", cmdName)
 	case "unlink":
-		return fmt.Sprintf("api.Hangup(ctx, %sFlags.agent)", cmdName)
+		return fmt.Sprintf("api.Unlink(ctx, %sFlags.agent)", cmdName)
 	case "hold":
 		return fmt.Sprintf("api.Hold(ctx, %sFlags.agent)", cmdName)
 	case "unhold":

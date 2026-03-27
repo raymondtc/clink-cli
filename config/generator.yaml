@@ -107,15 +107,35 @@ endpoints:
         description: "座席号 (可选，不传则查询所有)"
 
   # ==================== 呼叫控制 ====================
+  callout:
+    command: ["call", "dial"]
+    description: "发起座席外呼"
+    use: "dial <phone>"
+    resultType: "simple"
+    args:
+      - name: phone
+        description: "客户电话号码"
+        required: true
+    flags:
+      - param: customerNumber
+        flag: ""
+        source: arg
+      - param: cno
+        flag: agent
+        shorthand: a
+        type: string
+        description: "座席号"
+        required: true
+      - param: clid
+        flag: clid
+        type: string
+        description: "外显号码"
+
   webcall:
     command: ["call", "webcall"]
     description: "发起 WebCall 外呼"
-    use: "call webcall <phone>"
-    resultType: "kv"
-    custom:
-      conditional: true
-      conditionField: "agent"
-      conditionAPI: "MakeCall"
+    use: "webcall <phone>"
+    resultType: "simple"
     args:
       - name: phone
         description: "客户电话号码"
@@ -137,11 +157,6 @@ endpoints:
         flag: request-id
         type: string
         description: "请求唯一ID (防重放)"
-      - param: cno
-        flag: agent
-        shorthand: a
-        type: string
-        description: "座席号 (指定后使用座席外呼)"
 
   # ==================== 座席管理 ====================
   online:
