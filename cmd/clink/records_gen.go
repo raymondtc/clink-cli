@@ -11,15 +11,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
-
 var inboundFlags struct {
-	start string
-	end string
-	phone string
-	agent string
+	start  string
+	end    string
+	phone  string
+	agent  string
 	offset int
-	limit int
+	limit  int
 }
 
 var inboundCmd = &cobra.Command{
@@ -31,7 +29,7 @@ var inboundCmd = &cobra.Command{
 func init() {
 	recordsCmd.AddCommand(inboundCmd)
 
-	inboundCmd.Flags().StringVarP(&inboundFlags.start, "start", "s", time.Now().AddDate(0,0,-7).Format("2006-01-02"), "开始时间 (YYYY-MM-DD)")
+	inboundCmd.Flags().StringVarP(&inboundFlags.start, "start", "s", time.Now().AddDate(0, 0, -7).Format("2006-01-02"), "开始时间 (YYYY-MM-DD)")
 
 	inboundCmd.Flags().StringVarP(&inboundFlags.end, "end", "e", time.Now().Format("2006-01-02"), "结束时间 (YYYY-MM-DD)")
 
@@ -56,22 +54,29 @@ func runinbound(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	records, total, err := api.ListCdrIbs(ctx, startTime, endTime, inboundFlags.offset, inboundFlags.limit, inboundFlags.phone, inboundFlags.agent)
+	startTime, err := time.Parse("2006-01-02", inboundFlags.start)
+	if err != nil {
+		return fmt.Errorf("invalid start time: %w", err)
+	}
+	endTime, err := time.Parse("2006-01-02", inboundFlags.end)
+	if err != nil {
+		return fmt.Errorf("invalid end time: %w", err)
+	}
+
+	records, total, err := api.ListCdrIbs(ctx, endTime.UnixMilli(), startTime.UnixMilli(), inboundFlags.offset, inboundFlags.limit, inboundFlags.phone, inboundFlags.agent)
 	if err != nil {
 		return err
 	}
 	return renderList(records, total)
 }
 
-
-
 var outboundFlags struct {
-	start string
-	end string
-	phone string
-	agent string
+	start  string
+	end    string
+	phone  string
+	agent  string
 	offset int
-	limit int
+	limit  int
 }
 
 var outboundCmd = &cobra.Command{
@@ -83,7 +88,7 @@ var outboundCmd = &cobra.Command{
 func init() {
 	recordsCmd.AddCommand(outboundCmd)
 
-	outboundCmd.Flags().StringVarP(&outboundFlags.start, "start", "s", time.Now().AddDate(0,0,-7).Format("2006-01-02"), "开始时间")
+	outboundCmd.Flags().StringVarP(&outboundFlags.start, "start", "s", time.Now().AddDate(0, 0, -7).Format("2006-01-02"), "开始时间")
 
 	outboundCmd.Flags().StringVarP(&outboundFlags.end, "end", "e", time.Now().Format("2006-01-02"), "结束时间")
 
@@ -108,10 +113,18 @@ func runoutbound(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	records, total, err := api.ListCdrObs(ctx, startTime, endTime, outboundFlags.limit, outboundFlags.offset, outboundFlags.phone, outboundFlags.agent)
+	startTime, err := time.Parse("2006-01-02", outboundFlags.start)
+	if err != nil {
+		return fmt.Errorf("invalid start time: %w", err)
+	}
+	endTime, err := time.Parse("2006-01-02", outboundFlags.end)
+	if err != nil {
+		return fmt.Errorf("invalid end time: %w", err)
+	}
+
+	records, total, err := api.ListCdrObs(ctx, startTime.UnixMilli(), endTime.UnixMilli(), outboundFlags.limit, outboundFlags.offset, outboundFlags.phone, outboundFlags.agent)
 	if err != nil {
 		return err
 	}
 	return renderList(records, total)
 }
-

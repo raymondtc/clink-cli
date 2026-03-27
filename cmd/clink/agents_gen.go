@@ -11,8 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
-
 var agentsFlags struct {
 	agent string
 }
@@ -40,7 +38,7 @@ func runagents(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	agents, err := api.ListAgentStatus(ctx, agentsFlags.agent)
+	agents, _, err := api.ListAgentStatus(ctx, agentsFlags.agent)
 	if err != nil {
 		return err
 	}
@@ -51,7 +49,10 @@ func runagents(cmd *cobra.Command, args []string) error {
 		}
 		for _, agent := range agents {
 			statusIcon := "⚪"
-			status := deref(agent.AgentStatus)
+			status := ""
+			if v, ok := agent["agentStatus"].(string); ok {
+				status = v
+			}
 			switch status {
 			case "空闲":
 				statusIcon = "🟢"
@@ -60,11 +61,19 @@ func runagents(cmd *cobra.Command, args []string) error {
 			case "离线":
 				statusIcon = "⚪"
 			}
+			clientName := ""
+			if v, ok := agent["clientName"].(string); ok {
+				clientName = v
+			}
+			cno := ""
+			if v, ok := agent["cno"].(string); ok {
+				cno = v
+			}
 			table.Rows = append(table.Rows, renderer.Row{
 				Cells: []renderer.Cell{
 					{Value: statusIcon},
-					{Value: deref(agent.ClientName)},
-					{Value: deref(agent.Cno)},
+					{Value: clientName},
+					{Value: cno},
 					{Value: status},
 				},
 			})

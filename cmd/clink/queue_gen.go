@@ -11,8 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
-
 var statusFlags struct {
 	queue string
 }
@@ -41,30 +39,54 @@ func runstatus(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	queue, err := api.GetQueueStatus(ctx, statusFlags.queue)
+	queues, _, err := api.GetQueueStatus(ctx, statusFlags.queue)
 	if err != nil {
 		return err
 	}
-	qname := deref(queue.Qname)
-	queueID := deref(queue.Qno)
+	if len(queues) == 0 {
+		return fmt.Errorf("未找到队列")
+	}
+	queue := queues[0]
+	qname := ""
+	if v, ok := queue["qname"].(string); ok {
+		qname = v
+	}
+	queueID := ""
+	if v, ok := queue["qno"].(string); ok {
+		queueID = v
+	}
 	if outputFormat == "table" {
 		fmt.Printf("队列: %s (%s)\n\n", qname, queueID)
+		waitCount := 0
+		if v, ok := queue["waitCount"].(float64); ok {
+			waitCount = int(v)
+		}
+		waitTime := 0
+		if v, ok := queue["queueUpWaitTime"].(float64); ok {
+			waitTime = int(v)
+		}
+		onlineCount := 0
+		if v, ok := queue["onlineAgentCount"].(float64); ok {
+			onlineCount = int(v)
+		}
+		busyCount := 0
+		if v, ok := queue["busyAgentCount"].(float64); ok {
+			busyCount = int(v)
+		}
 		renderer.PrintKV(map[string]string{
-			"等待人数": derefInt(queue.WaitCount),
-			"平均等待": fmt.Sprintf("%s 秒", derefInt(queue.QueueUpWaitTime)),
-			"在线座席": derefInt(queue.OnlineAgentCount),
-			"忙碌座席": derefInt(queue.BusyAgentCount),
+			"等待人数": fmt.Sprintf("%d", waitCount),
+			"平均等待": fmt.Sprintf("%d 秒", waitTime),
+			"在线座席": fmt.Sprintf("%d", onlineCount),
+			"忙碌座席": fmt.Sprintf("%d", busyCount),
 		})
 		return nil
 	}
-	return renderOutput(queue)
+	return renderOutput(queues)
 }
-
-
 
 var listFlags struct {
 	offset int
-	limit int
+	limit  int
 }
 
 var listCmd = &cobra.Command{
@@ -93,10 +115,9 @@ func runlist(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	queues, err := api.ListQueues(ctx, listFlags.offset, listFlags.limit)
+	queues, _, err := api.ListQueues(ctx, listFlags.limit, listFlags.offset)
 	if err != nil {
 		return err
 	}
 	return renderOutput(queues)
 }
-

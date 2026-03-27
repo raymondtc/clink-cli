@@ -11,8 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
-
 var offlineFlags struct {
 	agent string
 }
@@ -42,7 +40,7 @@ func runoffline(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Offline(ctx, offlineFlags.agent)
+	_, err = api.Offline(ctx, offlineFlags.agent)
 	if err != nil {
 		return err
 	}
@@ -50,12 +48,10 @@ func runoffline(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-
-
 var pauseFlags struct {
-	agent string
+	agent   string
 	typeVal int
-	reason string
+	reason  string
 }
 
 var pauseCmd = &cobra.Command{
@@ -87,7 +83,7 @@ func runpause(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Pause(ctx, pauseFlags.agent, pauseFlags.typeVal, pauseFlags.reason)
+	_, err = api.Pause(ctx, pauseFlags.agent, pauseFlags.typeVal, pauseFlags.reason)
 	if err != nil {
 		return err
 	}
@@ -95,12 +91,10 @@ func runpause(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-
-
 var onlineFlags struct {
-	agent string
-	queue string
-	tel string
+	agent    string
+	queue    string
+	tel      string
 	bindType int
 }
 
@@ -135,15 +129,13 @@ func runonline(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Online(ctx, onlineFlags.agent, onlineFlags.queue, onlineFlags.tel, onlineFlags.bindType)
+	_, err = api.Online(ctx, onlineFlags.agent, onlineFlags.queue, onlineFlags.tel, onlineFlags.bindType)
 	if err != nil {
 		return err
 	}
 	renderer.PrintSuccess("座席登录上线成功")
 	return nil
 }
-
-
 
 var readyFlags struct {
 	agent string
@@ -174,11 +166,10 @@ func runready(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Unpause(ctx, readyFlags.agent)
+	_, err = api.Unpause(ctx, readyFlags.agent)
 	if err != nil {
 		return err
 	}
 	renderer.PrintSuccess("座席置闲成功")
 	return nil
 }
-

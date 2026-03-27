@@ -11,11 +11,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
-
 var dialFlags struct {
 	agent string
-	clid string
+	clid  string
 }
 
 var dialCmd = &cobra.Command{
@@ -27,7 +25,6 @@ var dialCmd = &cobra.Command{
 
 func init() {
 	callCmd.AddCommand(dialCmd)
-
 
 	dialCmd.Flags().StringVarP(&dialFlags.agent, "agent", "a", "", "座席号")
 	dialCmd.MarkFlagRequired("agent")
@@ -48,7 +45,7 @@ func rundial(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	phone := args[0]
 
-	err = api.Callout(ctx, phone, dialFlags.agent, dialFlags.clid)
+	_, err = api.Callout(ctx, phone, dialFlags.agent, dialFlags.clid)
 	if err != nil {
 		return err
 	}
@@ -56,13 +53,11 @@ func rundial(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-
-
 var webcallFlags struct {
-	clid string
-	ivr string
+	clid      string
+	ivr       string
 	requestId string
-	agent string
+	agent     string
 }
 
 var webcallCmd = &cobra.Command{
@@ -74,7 +69,6 @@ var webcallCmd = &cobra.Command{
 
 func init() {
 	callCmd.AddCommand(webcallCmd)
-
 
 	webcallCmd.Flags().StringVar(&webcallFlags.clid, "clid", "", "外显号码")
 
@@ -98,27 +92,21 @@ func runwebcall(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	phone := args[0]
 
-	var result *generated.CallResult
+	var result interface{}
 	if webcallFlags.agent != "" {
 		renderer.PrintSuccess(fmt.Sprintf("使用座席 %s 发起外呼...", webcallFlags.agent))
-		result, err = api.MakeCall(ctx, phone, webcallFlags.agent, webcallFlags.clid)
+		result, err = api.Callout(ctx, phone, webcallFlags.agent, webcallFlags.clid)
 	} else {
 		renderer.PrintSuccess("使用 WebCall 发起呼叫（无需座席）...")
-		result, err = api.Webcall(ctx, phone, webcallFlags.clid, webcallFlags.ivr, nil)
+		result, err = api.Webcall(ctx, phone, webcallFlags.clid, webcallFlags.ivr, webcallFlags.requestId)
 	}
 	if err != nil {
 		return err
 	}
 	fmt.Println()
-	renderer.PrintKV(map[string]string{
-		"通话ID": deref(result.CallId),
-		"状态":   deref(result.Status),
-		"号码":   phone,
-	})
+	renderer.PrintSuccess(fmt.Sprintf("呼叫已发起: %v", result))
 	return nil
 }
-
-
 
 var holdFlags struct {
 	agent string
@@ -149,7 +137,7 @@ func runhold(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Hold(ctx, holdFlags.agent)
+	_, err = api.Hold(ctx, holdFlags.agent)
 	if err != nil {
 		return err
 	}
@@ -157,12 +145,10 @@ func runhold(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-
-
 var transferFlags struct {
-	agent string
+	agent   string
 	typeVal int
-	target string
+	target  string
 }
 
 var transferCmd = &cobra.Command{
@@ -196,15 +182,13 @@ func runtransfer(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Transfer(ctx, transferFlags.agent, transferFlags.typeVal, transferFlags.target)
+	_, err = api.Transfer(ctx, transferFlags.agent, transferFlags.typeVal, transferFlags.target)
 	if err != nil {
 		return err
 	}
 	renderer.PrintSuccess("转接电话成功")
 	return nil
 }
-
-
 
 var hangupFlags struct {
 	agent string
@@ -235,15 +219,13 @@ func runhangup(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Unlink(ctx, hangupFlags.agent)
+	_, err = api.Unlink(ctx, hangupFlags.agent)
 	if err != nil {
 		return err
 	}
 	renderer.PrintSuccess("挂断当前通话成功")
 	return nil
 }
-
-
 
 var unholdFlags struct {
 	agent string
@@ -274,11 +256,10 @@ func rununhold(cmd *cobra.Command, args []string) error {
 	}
 	ctx := context.Background()
 
-	err = api.Unhold(ctx, unholdFlags.agent)
+	_, err = api.Unhold(ctx, unholdFlags.agent)
 	if err != nil {
 		return err
 	}
 	renderer.PrintSuccess("恢复保持的通话成功")
 	return nil
 }
-
